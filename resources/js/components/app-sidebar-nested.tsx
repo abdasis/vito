@@ -5,6 +5,7 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -12,52 +13,137 @@ import {
   SidebarMenuSub,
 } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
-import { Link, router, usePage } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import {
+  ArrowLeftIcon,
+  BellIcon,
   BookOpen,
   ChevronRightIcon,
+  CloudIcon,
+  CodeIcon,
   CogIcon,
+  DatabaseIcon,
   Folder,
+  KeyIcon,
+  ListIcon,
   MousePointerClickIcon,
+  PuzzleIcon,
+  PlugIcon,
   ServerIcon,
+  SettingsIcon,
+  UserIcon,
+  UsersIcon,
 } from 'lucide-react';
 import AppLogo from './app-logo';
 import { Icon } from '@/components/icon';
+import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
+const settingsNavItems: NavItem[] = [
+  {
+    title: 'Profile',
+    href: route('profile'),
+    icon: UserIcon,
+  },
+  {
+    title: 'Users',
+    href: route('users'),
+    icon: UsersIcon,
+  },
+  {
+    title: 'Projects',
+    href: route('projects'),
+    icon: ListIcon,
+  },
+  {
+    title: 'Server Providers',
+    href: route('server-providers'),
+    icon: CloudIcon,
+  },
+  {
+    title: 'Source Controls',
+    href: route('source-controls'),
+    icon: CodeIcon,
+  },
+  {
+    title: 'Storage Providers',
+    href: route('storage-providers'),
+    icon: DatabaseIcon,
+  },
+  {
+    title: 'Notification Channels',
+    href: route('notification-channels'),
+    icon: BellIcon,
+  },
+  {
+    title: 'SSH Keys',
+    href: route('ssh-keys'),
+    icon: KeyIcon,
+  },
+  {
+    title: 'API Keys',
+    href: route('api-keys'),
+    icon: PlugIcon,
+  },
+  {
+    title: 'Plugins',
+    href: route('plugins'),
+    icon: PuzzleIcon,
+  },
+  {
+    title: 'Vito Settings',
+    href: route('vito-settings'),
+    icon: SettingsIcon,
+  },
+];
+
+const mainNavItems: NavItem[] = [
+  {
+    title: 'Servers',
+    href: route('servers'),
+    icon: ServerIcon,
+  },
+  {
+    title: 'Sites',
+    href: route('sites.all'),
+    icon: MousePointerClickIcon,
+  },
+  {
+    title: 'Settings',
+    href: route('profile'),
+    icon: CogIcon,
+  },
+];
+
+const footerNavItems: NavItem[] = [
+  {
+    title: 'Repository',
+    href: 'https://github.com/vitodeploy/vito',
+    icon: Folder,
+  },
+  {
+    title: 'Documentation',
+    href: 'https://vitodeploy.com',
+    icon: BookOpen,
+  },
+];
+
+const settingsRoutes = [
+  route('profile'),
+  route('users'),
+  route('projects'),
+  route('server-providers'),
+  route('source-controls'),
+  route('storage-providers'),
+  route('notification-channels'),
+  route('ssh-keys'),
+  route('api-keys'),
+  route('plugins'),
+  route('vito-settings'),
+];
+
 export function AppSidebar() {
-  const page = usePage();
-
-  const mainNavItems: NavItem[] = [
-    {
-      title: 'Servers',
-      href: route('servers'),
-      icon: ServerIcon,
-    },
-    {
-      title: 'Sites',
-      href: route('sites.all'),
-      icon: MousePointerClickIcon,
-    },
-    {
-      title: 'Settings',
-      href: route('profile'),
-      icon: CogIcon,
-    },
-  ];
-
-  const footerNavItems: NavItem[] = [
-    {
-      title: 'Repository',
-      href: 'https://github.com/vitodeploy/vito',
-      icon: Folder,
-    },
-    {
-      title: 'Documentation',
-      href: 'https://vitodeploy.com',
-      icon: BookOpen,
-    },
-  ];
+  const isSettingsPage = settingsRoutes.some((r) => window.location.href.startsWith(r));
 
   const getMenuItems = (items: NavItem[]) => {
     return items.map((item) => {
@@ -75,7 +161,7 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <SidebarMenuSub className="">{getMenuItems(item.children)}</SidebarMenuSub>
+                <SidebarMenuSub>{getMenuItems(item.children)}</SidebarMenuSub>
               </CollapsibleContent>
             </SidebarMenuItem>
           </Collapsible>
@@ -93,12 +179,47 @@ export function AppSidebar() {
     });
   };
 
+  if (isSettingsPage) {
+    return (
+      <Sidebar collapsible="offcanvas" variant="sidebar">
+        <SidebarHeader>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" asChild>
+                <Link href={route('servers')} prefetch>
+                  <AppLogo />
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+          <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => router.visit(route('servers'))}>
+            <ArrowLeftIcon className="size-4" />
+            Back to App
+          </Button>
+        </SidebarHeader>
+
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupLabel>Settings</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>{getMenuItems(settingsNavItems)}</SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarFooter>
+          <NavUser />
+        </SidebarFooter>
+      </Sidebar>
+    );
+  }
+
   return (
     <Sidebar collapsible="offcanvas" variant="sidebar">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="sm" asChild>
+            <SidebarMenuButton size="lg" asChild>
               <Link href={route('servers')} prefetch>
                 <AppLogo />
               </Link>

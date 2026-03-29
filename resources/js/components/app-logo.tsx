@@ -1,15 +1,27 @@
 import { usePage } from '@inertiajs/react';
-import AppLogoIcon from './app-logo-icon';
 import { SharedData } from '@/types';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function AppLogo() {
-  const { env } = usePage<SharedData>().props;
-  const isProduction = env === 'production';
+  const { auth } = usePage<SharedData>().props;
+  const user = auth.user;
+  const project = auth.currentProject;
+
+  const initials = (name: string) =>
+    name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
 
   return (
-    <div className="relative flex aspect-square size-8 items-center justify-center rounded-md">
-      <AppLogoIcon />
-      {!isProduction && <div className="absolute right-0 bottom-0 left-0 bg-yellow-400 px-1 text-[8px] leading-tight font-bold text-black">DEV</div>}
-    </div>
+    <>
+      <Avatar className="size-8 rounded-lg">
+        <AvatarImage src={user.avatar} alt={user.name} />
+        <AvatarFallback className="rounded-md text-[10px]">{initials(user.name)}</AvatarFallback>
+      </Avatar>
+      <span className="truncate font-medium">{project?.name ?? user.name}</span>
+    </>
   );
 }

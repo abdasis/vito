@@ -17,7 +17,6 @@ import {
   SidebarGroupContent,
   SidebarMenuSub,
 } from "@/components/ui/sidebar"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   BellIcon,
   BookOpen,
@@ -52,21 +51,31 @@ export const AppSidebar = ({ ...props }: React.ComponentProps<typeof Sidebar>) =
 
   const isServerMenuDisabled = !server || server.status !== "ready"
 
-  const initials = user.name
+  const userInitials = user.name
     .split(" ")
     .map((n) => n[0])
     .join("")
     .toUpperCase()
     .slice(0, 2)
 
+  const projectInitials = auth.currentProject
+    ? auth.currentProject.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : userInitials
+
   const teams = [
     {
       name: workspaceName,
-      logo: (
-        <Avatar className="size-5 rounded-sm">
-          <AvatarImage src={user.avatar} alt={user.name} />
-          <AvatarFallback className="rounded-sm text-[10px]">{initials}</AvatarFallback>
-        </Avatar>
+      logo: auth.currentProject ? (
+        <span className="text-xs font-semibold leading-none">{projectInitials}</span>
+      ) : user.avatar ? (
+        <img src={user.avatar} alt={user.name} className="size-full rounded-lg object-cover" />
+      ) : (
+        <span className="text-xs font-semibold leading-none">{userInitials}</span>
       ),
       plan: user.email,
     },
