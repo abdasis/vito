@@ -182,7 +182,7 @@ export default function ServerTemplates({
   const query = useQuery<ServerTemplate[]>({
     queryKey: ['server-templates'],
     queryFn: async () => {
-      return (await axios.get(route('server-templates.index'))).data?.templates || [];
+      return (await axios.get(route('server-templates.json'))).data?.templates || [];
     },
   });
 

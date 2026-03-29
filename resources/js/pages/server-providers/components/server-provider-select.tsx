@@ -7,6 +7,7 @@ import { ServerProvider } from '@/types/server-provider';
 import ConnectServerProvider from '@/pages/server-providers/components/connect-server-provider';
 import { Button } from '@/components/ui/button';
 import { WifiIcon } from 'lucide-react';
+import { ProviderIcon } from '@/components/provider-icon';
 
 export default function ServerProviderSelect({
   value,
@@ -34,6 +35,7 @@ export default function ServerProviderSelect({
             {query.isSuccess &&
               query.data.map((serverProvider: ServerProvider) => (
                 <SelectItem key={`db-${serverProvider.name}`} value={serverProvider.id.toString()}>
+                  <ProviderIcon provider={serverProvider.provider} className="size-3.5 shrink-0" />
                   {serverProvider.name}
                 </SelectItem>
               ))}
