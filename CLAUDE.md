@@ -6,6 +6,7 @@
 - Analyse codebase before adding new code. Check sibling files for conventions.
 - Never run `npm build/dev` or `artisan serve` - user runs them.
 - Don't run formatters (pint/prettier) - user runs them later.
+- **NEVER modify files in `resources/js/components/ui/`** unless explicitly instructed.
 
 ## Stack
 
@@ -45,7 +46,54 @@ Laravel 12 (L10 structure), PHP 8.4, Inertia v2, React 19, Tailwind v4, PHPUnit 
 - Tailwind v4: Use `@import "tailwindcss"`, `@theme` for config, gap not margins.
 - Use Shadcn components and shadcn patterns like `text-foreground`, `bg-background`, ...
 - React components in `resources/js/components`. Use functional components and hooks.
+- Always use arrow functions for React components: `const MyComponent = () => { ... }`, never `function MyComponent() { ... }`.
 - CSS in `resources/css`. Use Tailwind utility classes. Avoid custom CSS unless necessary.
+- **NEVER disable type checking**: Do not use `@ts-expect-error`, `@ts-ignore`, `@ts-nocheck`, or `any` type. Always use proper TypeScript types, generics, or type guards instead.
+
+### Modal Style (Soft UI / Subtle Glass)
+
+Always use `Dialog` (not `Sheet`) for modals. Apply the double-wrapper pattern:
+
+```tsx
+<DialogContent
+  showCloseButton={false}
+  className="w-full max-w-3xl overflow-hidden rounded-2xl border-0 bg-gradient-to-b from-muted/60 to-muted/30 p-2 shadow-xl ring-1 ring-foreground/8 backdrop-blur-sm"
+>
+  {/* Inner content — contrasts with outer wrapper */}
+  <div className="flex flex-col gap-0 overflow-hidden rounded-xl bg-background/90 ring-1 ring-foreground/6">
+    {/* Header */}
+    <DialogHeader className="flex flex-row items-center justify-between gap-2 border-b border-foreground/6 bg-muted/30 px-5 py-4">
+      <div className="flex flex-col gap-0.5">
+        <DialogTitle>...</DialogTitle>
+        <DialogDescription>...</DialogDescription>
+      </div>
+      <DialogClose asChild>
+        <Button variant="ghost" size="icon" className="size-7 shrink-0">
+          <XIcon className="size-4" />
+          <span className="sr-only">Close</span>
+        </Button>
+      </DialogClose>
+    </DialogHeader>
+
+    {/* Scrollable body */}
+    <div className="max-h-[70vh] overflow-y-auto">
+      <div className="p-5">...</div>
+    </div>
+
+    {/* Footer */}
+    <DialogFooter className="-mx-0 -mb-0 rounded-b-xl border-t border-foreground/6 bg-muted/30 px-5 py-4">
+      ...
+    </DialogFooter>
+  </div>
+</DialogContent>
+```
+
+Rules:
+- Outer wrapper: `rounded-2xl` gradient muted bg + `p-2` (acts as visual frame)
+- Inner wrapper: `rounded-xl bg-background/90 ring-1 ring-foreground/6` (contrasts with outer)
+- Header & footer: `bg-muted/30` with `border-foreground/6` separator
+- Body: `max-h-[70vh] overflow-y-auto` for scrollable content
+- Always include manual close button (`XIcon`) in header, set `showCloseButton={false}` on `DialogContent`
 
 ## Testing
 

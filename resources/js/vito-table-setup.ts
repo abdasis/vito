@@ -4,8 +4,11 @@ import type { SocketEventData } from '@/stores/socket-store';
 import { CrownIcon, CopyIcon, SignpostIcon } from 'lucide-react';
 
 registerIcons({
+  // @ts-ignore — inertia-table-react bundles its own React types causing ReactNode version mismatch
   crown: CrownIcon,
+  // @ts-ignore
   copy: CopyIcon,
+  // @ts-ignore
   signpost: SignpostIcon,
 });
 
