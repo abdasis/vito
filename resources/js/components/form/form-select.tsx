@@ -1,7 +1,7 @@
 import InputError from '@/components/ui/input-error';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { FormLabel } from './form-label';
 
 interface SelectOption {
     value: string;
@@ -18,15 +18,16 @@ interface FormSelectProps {
     description?: string;
     id?: string;
     disabled?: boolean;
+    required?: boolean;
     className?: string;
 }
 
-const FormSelect = ({ label, value, onValueChange, options, placeholder, error, description, id, disabled, className }: FormSelectProps) => {
+const FormSelect = ({ label, value, onValueChange, options, placeholder, error, description, id, disabled, required, className }: FormSelectProps) => {
     const inputId = id ?? label.toLowerCase().replace(/\s+/g, '-');
 
     return (
         <div className="grid gap-2">
-            <Label htmlFor={inputId}>{label}</Label>
+            <FormLabel htmlFor={inputId} required={required}>{label}</FormLabel>
             <Select value={value} onValueChange={onValueChange} disabled={disabled}>
                 <SelectTrigger
                     id={inputId}

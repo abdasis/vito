@@ -1,7 +1,7 @@
 import { Checkbox } from '@/components/ui/checkbox';
 import InputError from '@/components/ui/input-error';
-import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { FormLabel } from './form-label';
 
 interface FormCheckboxProps {
     label: string;
@@ -11,10 +11,11 @@ interface FormCheckboxProps {
     description?: string;
     id?: string;
     disabled?: boolean;
+    required?: boolean;
     className?: string;
 }
 
-const FormCheckbox = ({ label, checked, onCheckedChange, error, description, id, disabled, className }: FormCheckboxProps) => {
+const FormCheckbox = ({ label, checked, onCheckedChange, error, description, id, disabled, required, className }: FormCheckboxProps) => {
     const inputId = id ?? label.toLowerCase().replace(/\s+/g, '-');
 
     return (
@@ -27,9 +28,9 @@ const FormCheckbox = ({ label, checked, onCheckedChange, error, description, id,
                     disabled={disabled}
                     className={cn(error && 'border-rose-500')}
                 />
-                <Label htmlFor={inputId} className="cursor-pointer font-normal">
+                <FormLabel htmlFor={inputId} required={required}>
                     {label}
-                </Label>
+                </FormLabel>
             </div>
             {description && !error && <p className="text-muted-foreground text-xs">{description}</p>}
             <InputError message={error} />
