@@ -1,4 +1,4 @@
-import AdminLayout from '@/layouts/admin/layout';
+import SettingsLayout from '@/layouts/settings/layout';
 import { Head, usePage } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import { useState } from 'react';
@@ -21,7 +21,7 @@ export default function Plugins() {
   }>();
 
   return (
-    <AdminLayout>
+    <SettingsLayout>
       <Head title="Plugins" />
 
       <Container className="max-w-5xl">
@@ -80,6 +80,6 @@ export default function Plugins() {
           </TabsContent>
         </Tabs>
       </Container>
-    </AdminLayout>
+    </SettingsLayout>
   );
 }
