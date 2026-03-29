@@ -6,7 +6,7 @@ import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import ServerLayout from '@/layouts/server/layout';
 import { BookOpenIcon, LoaderCircleIcon } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardDescription, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import ServerStatus from '@/pages/servers/components/status';
 import DateTime from '@/components/date-time';
@@ -67,9 +67,10 @@ export default function Databases() {
           </div>
         </HeaderContainer>
 
-        <Card>
-          <CardHeader className="flex-row items-center justify-between gap-2">
-            <div className="space-y-2">
+        {/* Server details */}
+        <div className="overflow-hidden rounded-2xl bg-gradient-to-b from-muted/60 to-muted/30 p-1 ring-1 ring-foreground/8">
+          <div className="flex items-center justify-between gap-2 px-5 py-4">
+            <div className="space-y-0.5">
               <CardTitle>Server details</CardTitle>
               <CardDescription>Update server details</CardDescription>
             </div>
@@ -92,8 +93,8 @@ export default function Databases() {
                 </Button>
               )}
             </div>
-          </CardHeader>
-          <CardContent>
+          </div>
+          <div className="overflow-hidden rounded-xl bg-background/90 ring-1 ring-foreground/6">
             <div className="flex items-center justify-between p-4">
               <span>ID</span>
               <span className="text-muted-foreground">{page.props.server.id}</span>
@@ -192,56 +193,54 @@ export default function Databases() {
             <Separator />
             <div className="flex items-center justify-between p-4">
               <span>Available updates</span>
-              <span className="text-muted-foreground">
-                <span className="text-muted-foreground">{page.props.server.updates ?? '-'}</span>
-              </span>
+              <span className="text-muted-foreground">{page.props.server.updates ?? '-'}</span>
             </div>
             <Separator />
             <div className="flex items-center justify-between p-4">
               <span>Provider</span>
-              <span className="text-muted-foreground">
-                <span className="text-muted-foreground">{page.props.server.provider}</span>
-              </span>
+              <span className="text-muted-foreground">{page.props.server.provider}</span>
             </div>
             <Separator />
             <div className="flex items-center justify-between p-4">
               <span>Public key</span>
               <CopyableBadge text={page.props.server.public_key} />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
+        {/* Transfer server */}
+        <div className="overflow-hidden rounded-2xl bg-gradient-to-b from-muted/60 to-muted/30 p-1 ring-1 ring-foreground/8">
+          <div className="px-5 py-4">
             <CardTitle>Transfer server</CardTitle>
-            <CardDescription>Here you can transfer server to another project</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 p-4">
+            <CardDescription className="mt-0.5">Here you can transfer server to another project</CardDescription>
+          </div>
+          <div className="overflow-hidden rounded-xl bg-background/90 ring-1 ring-foreground/6">
+            <div className="space-y-2 p-5">
               <p>This action will transfer the server to another project. All associated data will remain intact.</p>
 
               <TransferServer server={page.props.server}>
                 <Button variant="outline">Transfer server</Button>
               </TransferServer>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card className="border-destructive/50">
-          <CardHeader>
+        {/* Delete server */}
+        <div className="overflow-hidden rounded-2xl bg-gradient-to-b from-destructive/10 to-destructive/5 p-1 ring-1 ring-destructive/20">
+          <div className="px-5 py-4">
             <CardTitle>Delete server</CardTitle>
-            <CardDescription>Here you can delete the server.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 p-4">
+            <CardDescription className="mt-0.5">Here you can delete the server.</CardDescription>
+          </div>
+          <div className="overflow-hidden rounded-xl bg-background/90 ring-1 ring-foreground/6">
+            <div className="space-y-2 p-5">
               <p>please note that this action is irreversible and will delete all data associated with the server.</p>
 
               <DeleteServer server={page.props.server}>
                 <Button variant="destructive">Delete server</Button>
               </DeleteServer>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </Container>
     </ServerLayout>
   );

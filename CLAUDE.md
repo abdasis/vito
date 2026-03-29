@@ -95,6 +95,46 @@ Rules:
 - Body: `max-h-[70vh] overflow-y-auto` for scrollable content
 - Always include manual close button (`XIcon`) in header, set `showCloseButton={false}` on `DialogContent`
 
+### Card Style (Soft UI / Subtle Glass)
+
+Use the same double-wrapper pattern for cards. Title/header lives in the outer wrapper, content in the inner wrapper:
+
+```tsx
+{/* Standard card */}
+<div className="overflow-hidden rounded-2xl bg-gradient-to-b from-muted/60 to-muted/30 p-1 ring-1 ring-foreground/8">
+  {/* Header — in outer wrapper */}
+  <div className="flex items-center justify-between gap-2 px-5 py-4">
+    <div className="space-y-0.5">
+      <CardTitle>...</CardTitle>
+      <CardDescription>...</CardDescription>
+    </div>
+    {/* Optional action buttons */}
+  </div>
+  {/* Inner content */}
+  <div className="overflow-hidden rounded-xl bg-background/90 ring-1 ring-foreground/6">
+    <div className="p-5">...</div>
+  </div>
+</div>
+
+{/* Destructive card */}
+<div className="overflow-hidden rounded-2xl bg-gradient-to-b from-destructive/10 to-destructive/5 p-1 ring-1 ring-destructive/20">
+  <div className="px-5 py-4">
+    <CardTitle>...</CardTitle>
+    <CardDescription>...</CardDescription>
+  </div>
+  <div className="overflow-hidden rounded-xl bg-background/90 ring-1 ring-foreground/6">
+    <div className="p-5">...</div>
+  </div>
+</div>
+```
+
+Rules:
+- Outer wrapper: `rounded-2xl` gradient muted bg + `p-1` (acts as visual frame), no shadow
+- Inner wrapper: `rounded-xl bg-background/90 ring-1 ring-foreground/6` (contrasts with outer)
+- Title/description in outer wrapper, content in inner wrapper
+- Destructive cards: use `from-destructive/10 to-destructive/5` + `ring-destructive/20` for outer wrapper
+- Use `CardTitle` and `CardDescription` from shadcn for text, but do not use `Card`/`CardHeader`/`CardContent` wrappers
+
 ## Testing
 
 - PHPUnit only. Create with `php artisan make:test --phpunit`.
