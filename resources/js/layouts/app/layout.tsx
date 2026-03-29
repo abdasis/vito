@@ -1,6 +1,6 @@
-import { AppSidebar } from '@/components/app-sidebar';
+import { AppSidebar } from '@/components/app-sidebar-nested';
 import { AppHeader } from '@/components/app-header';
-import { type BreadcrumbItem, NavItem, SharedData } from '@/types';
+import { type BreadcrumbItem, SharedData } from '@/types';
 import { type PropsWithChildren, useEffect, useState } from 'react';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { usePage } from '@inertiajs/react';
@@ -13,13 +13,9 @@ import { useSocketEvents } from '@/hooks/use-socket-events';
 
 export default function Layout({
   children,
-  secondNavItems,
-  secondNavTitle,
   breadcrumbs,
 }: PropsWithChildren<{
   breadcrumbs?: BreadcrumbItem[];
-  secondNavItems?: NavItem[];
-  secondNavTitle?: string;
 }>) {
   const page = usePage<SharedData>();
   const { status: socketStatus, reconnect: socketReconnect } = useSocketEvents();
@@ -44,8 +40,8 @@ export default function Layout({
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <SidebarProvider defaultOpen={!!(secondNavItems && secondNavItems.length > 0)}>
-          <AppSidebar secondNavItems={secondNavItems} secondNavTitle={secondNavTitle} />
+        <SidebarProvider>
+          <AppSidebar />
           <SidebarInset>
             <AppHeader socketStatus={socketStatus} socketReconnect={socketReconnect} />
             {breadcrumbs && breadcrumbs.length > 1 && (
