@@ -110,7 +110,7 @@ export function InstantLogs({ server, children }: { server: Server; children: Re
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>{children}</SheetTrigger>
-      <SheetContent side="bottom" className="h-3/4" showClose={false}>
+      <SheetContent side="bottom" className="h-3/4" showCloseButton={false}>
         <SheetHeader className="bg-muted/50 flex flex-row items-center justify-between border-b px-4 py-2">
           <div className="flex items-center gap-2">
             <LogsIcon className="h-4 w-4" />

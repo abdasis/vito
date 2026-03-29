@@ -1,31 +1,14 @@
 import {
   CheckIcon,
   ChevronsUpDownIcon,
-  ClipboardCheckIcon,
   ClipboardIcon,
-  LoaderCircle,
   PlusIcon,
   TrashIcon,
   TriangleAlert,
   WifiIcon,
+  XIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { useForm, usePage } from '@inertiajs/react';
-import React, { FormEventHandler, useEffect, useState } from 'react';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import InputError from '@/components/ui/input-error';
-import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ServerProvider } from '@/types/server-provider';
-import ConnectServerProvider from '@/pages/server-providers/components/connect-server-provider';
-import axios from 'axios';
-import { Form, FormField, FormFields } from '@/components/ui/form';
-import type { SharedData } from '@/types';
-import { DataTable } from '@/components/data-table';
-import { ColumnDef } from '@tanstack/react-table';
-import { EventBus } from '@/lib/event-bus';
 import {
   Dialog,
   DialogClose,
@@ -36,12 +19,29 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { useForm, usePage } from '@inertiajs/react';
+import React, { FormEventHandler, useEffect, useState } from 'react';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import InputError from '@/components/ui/input-error';
+import { FormInput, FormSelect, FormSubmit } from '@/components/form';
+import { ProviderIcon } from '@/components/provider-icon';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ServerProvider } from '@/types/server-provider';
+import ConnectServerProvider from '@/pages/server-providers/components/connect-server-provider';
+import axios from 'axios';
+import { Form, FormField, FormFields } from '@/components/ui/form';
+import type { SharedData } from '@/types';
+import { DataTable } from '@/components/data-table';
+import { ColumnDef } from '@tanstack/react-table';
+import { EventBus } from '@/lib/event-bus';
 import ServerTemplates from './templates';
 import { ServerTemplate, Service } from '@/types/server-template';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 type CreateServerForm = {
   provider: string;
@@ -55,7 +55,7 @@ type CreateServerForm = {
   services: Service[];
 };
 
-function AddService() {
+const AddService = () => {
   const [open, setOpen] = useState(false);
   const page = usePage<SharedData>();
   const form = useForm<Service>({
@@ -88,78 +88,89 @@ function AddService() {
           </button>
         </div>
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add service</DialogTitle>
-          <DialogDescription className="sr-only">Add a new service to server installation</DialogDescription>
-        </DialogHeader>
+      <DialogContent
+        showCloseButton={false}
+        className="overflow-hidden rounded-2xl border-0 bg-gradient-to-b from-muted/60 to-muted/30 p-2 shadow-xl ring-1 ring-foreground/8 backdrop-blur-sm sm:max-w-md"
+      >
+        <div className="flex flex-col gap-0 overflow-hidden rounded-xl bg-background/90 ring-1 ring-foreground/6">
+          <DialogHeader className="flex flex-row items-center justify-between gap-2 border-b border-foreground/6 bg-muted/30 px-5 py-4">
+            <div className="flex flex-col gap-0.5">
+              <DialogTitle>Add service</DialogTitle>
+              <DialogDescription className="sr-only">Add a new service to server installation</DialogDescription>
+            </div>
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon" className="size-7 shrink-0">
+                <XIcon className="size-4" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </DialogClose>
+          </DialogHeader>
 
-        <Form id="add-service-form" onSubmit={add} className="p-4">
-          <FormFields>
-            {/*service*/}
-            <FormField>
-              <Label htmlFor="name">Name</Label>
-              <Select
-                value={form.data.name}
-                onValueChange={(value) => {
-                  form.setData('name', value);
-                  form.setData('type', page.props.configs.service.services[value].type);
-                  form.setData('version', '');
-                }}
-              >
-                <SelectTrigger id="name">
-                  <SelectValue placeholder="Select a service" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {Object.entries(page.props.configs.service.services).map(([key, service]) => (
-                      <SelectItem key={`service-${key}`} value={key}>
-                        {service.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <InputError message={form.errors.type || form.errors.name} />
-            </FormField>
-
-            {/*version*/}
-            <FormField>
-              <Label htmlFor="version">Version</Label>
-              <Select value={form.data.version} onValueChange={(value) => form.setData('version', value)}>
-                <SelectTrigger id="version">
-                  <SelectValue placeholder="Select a version" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {form.data.name &&
-                      page.props.configs.service.services[form.data.name].versions.map((version) => (
-                        <SelectItem key={`version-${form.data.name}-${version}`} value={version}>
-                          {version}
+          <Form id="add-service-form" onSubmit={add} className="p-5">
+            <FormFields>
+              <FormField>
+                <Label htmlFor="name">Name</Label>
+                <Select
+                  value={form.data.name}
+                  onValueChange={(value) => {
+                    form.setData('name', value);
+                    form.setData('type', page.props.configs.service.services[value].type);
+                    form.setData('version', '');
+                  }}
+                >
+                  <SelectTrigger id="name">
+                    <SelectValue placeholder="Select a service" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {Object.entries(page.props.configs.service.services).map(([key, service]) => (
+                        <SelectItem key={`service-${key}`} value={key}>
+                          {service.label}
                         </SelectItem>
                       ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <InputError message={form.errors.version} />
-            </FormField>
-          </FormFields>
-        </Form>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <InputError message={form.errors.type || form.errors.name} />
+              </FormField>
 
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="outline">
-              Cancel
+              <FormField>
+                <Label htmlFor="version">Version</Label>
+                <Select value={form.data.version} onValueChange={(value) => form.setData('version', value)}>
+                  <SelectTrigger id="version">
+                    <SelectValue placeholder="Select a version" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {form.data.name &&
+                        page.props.configs.service.services[form.data.name].versions.map((version) => (
+                          <SelectItem key={`version-${form.data.name}-${version}`} value={version}>
+                            {version}
+                          </SelectItem>
+                        ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <InputError message={form.errors.version} />
+              </FormField>
+            </FormFields>
+          </Form>
+
+          <DialogFooter className="-mx-0 -mb-0 rounded-b-xl border-t border-foreground/6 bg-muted/30 px-5 py-4">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button form="add-service-form" type="button" onClick={add}>
+              Add
             </Button>
-          </DialogClose>
-          <Button form="add-service-form" type="button" onClick={add}>
-            Add
-          </Button>
-        </DialogFooter>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
-}
+};
 
 const servicesColumns: ColumnDef<Service>[] = [
   {
@@ -188,7 +199,7 @@ const servicesColumns: ColumnDef<Service>[] = [
   },
 ];
 
-export default function CreateServer({
+const CreateServer = ({
   defaultOpen,
   onOpenChange,
   children,
@@ -196,7 +207,7 @@ export default function CreateServer({
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   children: React.ReactNode;
-}) {
+}) => {
   const page = usePage<SharedData>();
 
   const [open, setOpen] = useState(defaultOpen || false);
@@ -284,13 +295,11 @@ export default function CreateServer({
     form.post(route('servers'));
   };
 
-  const [copySuccess, setCopySuccess] = useState(false);
   const copyToClipboard = () => {
     navigator.clipboard.writeText(page.props.public_key_text).then(() => {
-      setCopySuccess(true);
-      setTimeout(() => {
-        setCopySuccess(false);
-      }, 2000);
+      toast.success('Public key copied!', {
+        description: 'Paste it into /root/.ssh/authorized_keys on your server.',
+      });
     });
   };
 
@@ -348,258 +357,276 @@ export default function CreateServer({
   };
 
   return (
-    <Sheet open={open} onOpenChange={handleOpenChange} modal>
-      <SheetTrigger asChild>{children}</SheetTrigger>
-      <SheetContent className="w-full lg:max-w-4xl">
-        <SheetHeader>
-          <SheetTitle>Create new server</SheetTitle> <SheetDescription>Fill in the details to create a new server.</SheetDescription>
-        </SheetHeader>
-        <Form id="create-server-form" className="p-4" onSubmit={submit}>
-          <FormFields>
-            <FormField>
-              <Label htmlFor="provider">Provider</Label>
-              <Select value={form.data.provider} onValueChange={(value) => selectProvider(value)}>
-                <SelectTrigger id="provider">
-                  <SelectValue placeholder="Select a provider" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {Object.entries(page.props.configs.server_provider.providers).map(([key, provider]) => (
-                      <SelectItem key={key} value={key}>
-                        {provider.label}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <InputError message={form.errors.provider} />
-            </FormField>
+    <Dialog open={open} onOpenChange={handleOpenChange} modal>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent
+        showCloseButton={false}
+        className="w-full min-w-5xl overflow-hidden rounded-2xl border-0 bg-gradient-to-b from-muted/60 to-muted/30 p-2 shadow-xl ring-1 ring-foreground/8 backdrop-blur-sm"
+      >
+        {/* Inner content — contrasts with outer wrapper */}
+        <div className="flex flex-col gap-0 overflow-hidden rounded-xl bg-background/90 ring-1 ring-foreground/6">
+          {/* Header */}
+          <DialogHeader className="flex flex-row items-center justify-between gap-2 border-b border-foreground/6 bg-muted/30 px-5 py-4">
+            <div className="flex flex-col gap-0.5">
+              <DialogTitle className="text-base font-semibold">Create new server</DialogTitle>
+              <DialogDescription>Fill in the details to create a new server.</DialogDescription>
+            </div>
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon" className="size-7 shrink-0">
+                <XIcon className="size-4" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </DialogClose>
+          </DialogHeader>
 
-            {form.data.provider && form.data.provider !== 'custom' && (
-              <FormField>
-                <Label htmlFor="server-provider">Server provider connection</Label>
-                <div className="flex items-center gap-2">
-                  <Select value={form.data.server_provider.toString()} onValueChange={selectServerProvider}>
-                    <SelectTrigger id="provider">
+          {/* Scrollable body */}
+          <div className="max-h-[70vh] overflow-y-auto">
+            <Form id="create-server-form" className="p-5" onSubmit={submit}>
+              <FormFields>
+                <div className="grid gap-2">
+                  <Label htmlFor="provider">Provider</Label>
+                  <Select value={form.data.provider} onValueChange={selectProvider}>
+                    <SelectTrigger id="provider" className={cn('w-4/12', form.errors.provider && 'border-rose-500 focus-visible:border-rose-500 focus-visible:ring-rose-500/20')} aria-invalid={!!form.errors.provider}>
                       <SelectValue placeholder="Select a provider" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        {serverProviders
-                          .filter((item: ServerProvider) => item.provider === form.data.provider)
-                          .map((provider) => (
-                            <SelectItem key={`server-provider-${provider.id}`} value={provider.id.toString()}>
-                              {provider.name}
-                            </SelectItem>
-                          ))}
+                        {Object.entries(page.props.configs.server_provider.providers).map(([key, provider]) => (
+                          <SelectItem key={key} value={key}>
+                            <ProviderIcon provider={key} className="size-3.5" />
+                            {provider.label}
+                          </SelectItem>
+                        ))}
                       </SelectGroup>
                     </SelectContent>
                   </Select>
-                  <ConnectServerProvider defaultProvider={form.data.provider} onProviderAdded={fetchServerProviders}>
-                    <Button variant="outline">
-                      <WifiIcon />
-                    </Button>
-                  </ConnectServerProvider>
+                  <InputError message={form.errors.provider} />
                 </div>
-                <InputError message={form.errors.server_provider} />
-              </FormField>
-            )}
 
-            {form.data.provider && form.data.provider !== 'custom' && (
-              <div className="grid grid-cols-2 gap-6">
-                <FormField>
-                  <Label htmlFor="region">Region</Label>
-                  <Popover open={regionOpen} onOpenChange={setRegionOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="region"
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={regionOpen}
-                        className="w-full justify-between font-normal"
-                        disabled={form.data.server_provider === 0}
-                      >
-                        {form.data.region ? regions[form.data.region] || form.data.region : 'Select a region'}
-                        <ChevronsUpDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Search region..." />
-                        <CommandList>
-                          <CommandGroup>
-                            {Object.entries(regions).map(([key, value]) => (
-                              <CommandItem
-                                key={`region-${key}`}
-                                value={value}
-                                onSelect={() => {
-                                  selectRegion(key);
-                                  setRegionOpen(false);
-                                }}
-                              >
-                                {value}
-                                <CheckIcon className={cn('ml-auto', form.data.region === key ? 'opacity-100' : 'opacity-0')} />
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <InputError message={form.errors.region} />
-                </FormField>
+                {form.data.provider && form.data.provider !== 'custom' && (
+                  <FormField>
+                    <Label htmlFor="server-provider">Server provider connection</Label>
+                    <div className="flex items-center gap-2">
+                      <Select value={form.data.server_provider.toString()} onValueChange={selectServerProvider}>
+                        <SelectTrigger id="provider">
+                          <SelectValue placeholder="Select a provider" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {serverProviders
+                              .filter((item: ServerProvider) => item.provider === form.data.provider)
+                              .map((provider) => (
+                                <SelectItem key={`server-provider-${provider.id}`} value={provider.id.toString()}>
+                                  {provider.name}
+                                </SelectItem>
+                              ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      <ConnectServerProvider defaultProvider={form.data.provider} onProviderAdded={fetchServerProviders}>
+                        <Button variant="outline">
+                          <WifiIcon />
+                        </Button>
+                      </ConnectServerProvider>
+                    </div>
+                    <InputError message={form.errors.server_provider} />
+                  </FormField>
+                )}
 
-                <FormField>
-                  <Label htmlFor="plan">Plan</Label>
-                  <Popover open={planOpen} onOpenChange={setPlanOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="plan"
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={planOpen}
-                        className="w-full justify-between font-normal"
-                        disabled={form.data.region === ''}
-                      >
-                        {form.data.plan ? plans[form.data.plan] || form.data.plan : 'Select a plan'}
-                        <ChevronsUpDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Search plan..." />
-                        <CommandList>
-                          <CommandGroup>
-                            {Object.entries(plans).map(([key, value]) => (
-                              <CommandItem
-                                key={`plan-${key}`}
-                                value={value}
-                                onSelect={() => {
-                                  selectPlan(key);
-                                  setPlanOpen(false);
-                                }}
-                              >
-                                {value}
-                                <CheckIcon className={cn('ml-auto', form.data.plan === key ? 'opacity-100' : 'opacity-0')} />
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <InputError message={form.errors.plan} />
-                </FormField>
-              </div>
-            )}
+                {form.data.provider && form.data.provider !== 'custom' && (
+                  <div className="grid grid-cols-2 gap-6">
+                    <FormField>
+                      <Label htmlFor="region">Region</Label>
+                      <Popover open={regionOpen} onOpenChange={setRegionOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            id="region"
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={regionOpen}
+                            className="w-full justify-between font-normal"
+                            disabled={form.data.server_provider === 0}
+                          >
+                            {form.data.region ? regions[form.data.region] || form.data.region : 'Select a region'}
+                            <ChevronsUpDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search region..." />
+                            <CommandList>
+                              <CommandGroup>
+                                {Object.entries(regions).map(([key, value]) => (
+                                  <CommandItem
+                                    key={`region-${key}`}
+                                    value={value}
+                                    onSelect={() => {
+                                      selectRegion(key);
+                                      setRegionOpen(false);
+                                    }}
+                                  >
+                                    {value}
+                                    <CheckIcon className={cn('ml-auto', form.data.region === key ? 'opacity-100' : 'opacity-0')} />
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <InputError message={form.errors.region} />
+                    </FormField>
 
-            {form.data.provider === 'custom' && (
-              <>
-                <Alert>
-                  <TriangleAlert size={5} />
-                  <AlertDescription>
-                    Your server needs to have a new unused installation of supported operating systems and must have a root user. To get started, add
-                    our public key to /root/.ssh/authorized_keys file by running the bellow command on your server as root.
-                  </AlertDescription>
-                </Alert>
-                <FormField>
-                  <Label htmlFor="public_key" className="flex items-center gap-2">
-                    Public Key command
-                    {copySuccess ? <ClipboardCheckIcon className="text-success! size-3" /> : <ClipboardIcon className="size-3 cursor-pointer" />}
-                  </Label>
-                  <Textarea
-                    onClick={copyToClipboard}
-                    id="public_key"
-                    value={page.props.public_key_text}
-                    readOnly
-                    className="justify-between overflow-auto font-normal"
-                    spellCheck={false}
-                  ></Textarea>
-                </FormField>
-              </>
-            )}
+                    <FormField>
+                      <Label htmlFor="plan">Plan</Label>
+                      <Popover open={planOpen} onOpenChange={setPlanOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            id="plan"
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={planOpen}
+                            className="w-full justify-between font-normal"
+                            disabled={form.data.region === ''}
+                          >
+                            {form.data.plan ? plans[form.data.plan] || form.data.plan : 'Select a plan'}
+                            <ChevronsUpDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search plan..." />
+                            <CommandList>
+                              <CommandGroup>
+                                {Object.entries(plans).map(([key, value]) => (
+                                  <CommandItem
+                                    key={`plan-${key}`}
+                                    value={value}
+                                    onSelect={() => {
+                                      selectPlan(key);
+                                      setPlanOpen(false);
+                                    }}
+                                  >
+                                    {value}
+                                    <CheckIcon className={cn('ml-auto', form.data.plan === key ? 'opacity-100' : 'opacity-0')} />
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <InputError message={form.errors.plan} />
+                    </FormField>
+                  </div>
+                )}
 
-            <div className="grid grid-cols-2 items-start gap-6">
-              <FormField>
-                <Label htmlFor="name">Server Name</Label>
-                <Input id="name" type="text" autoComplete="name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} />
-                <InputError message={form.errors.name} />
-              </FormField>
-              <FormField>
-                <Label htmlFor="os">Operating System</Label>
-                <Select value={form.data.os} onValueChange={(value) => form.setData('os', value)}>
-                  <SelectTrigger id="os">
-                    <SelectValue placeholder="Select an operating system" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {page.props.configs.operating_systems.map((value) => (
-                        <SelectItem key={`os-${value}`} value={value}>
-                          {value}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-                <InputError message={form.errors.os} />
-              </FormField>
-            </div>
+                {form.data.provider === 'custom' && (
+                  <>
+                    <Alert>
+                      <TriangleAlert size={5} />
+                      <AlertDescription>
+                        Your server needs to have a new unused installation of supported operating systems and must have a root user. To get started,
+                        add our public key to /root/.ssh/authorized_keys file by running the bellow command on your server as root.
+                      </AlertDescription>
+                    </Alert>
+                    <FormField>
+                      <Label htmlFor="public_key" className="flex items-center gap-2">
+                        Public Key command
+                        <ClipboardIcon className="size-3 cursor-pointer" />
+                      </Label>
+                      <Textarea
+                        onClick={copyToClipboard}
+                        id="public_key"
+                        value={page.props.public_key_text}
+                        readOnly
+                        className="justify-between overflow-auto font-normal"
+                        spellCheck={false}
+                      ></Textarea>
+                    </FormField>
+                  </>
+                )}
 
-            {form.data.provider === 'custom' && (
-              <div className="grid grid-cols-2 items-start gap-6">
-                <FormField>
-                  <Label htmlFor="ip">SSH IP</Label>
-                  <Input id="ip" type="text" autoComplete="ip" value={form.data.ip} onChange={(e) => form.setData('ip', e.target.value)} />
-                  <InputError message={form.errors.ip} />
-                </FormField>
-
-                <FormField>
-                  <Label htmlFor="port">SSH Port</Label>
-                  <Input
-                    id="port"
+                <div className="grid grid-cols-2 items-start gap-6">
+                  <FormInput
+                    label="Server Name"
+                    id="name"
                     type="text"
-                    autoComplete="port"
-                    value={form.data.port}
-                    onChange={(e) => form.setData('port', parseInt(e.target.value))}
+                    autoComplete="name"
+                    value={form.data.name}
+                    onChange={(e) => form.setData('name', e.target.value)}
+                    error={form.errors.name}
                   />
-                  <InputError message={form.errors.port} />
-                </FormField>
-              </div>
-            )}
+                  <FormSelect
+                    label="Operating System"
+                    value={form.data.os}
+                    onValueChange={(value) => form.setData('os', value)}
+                    options={page.props.configs.operating_systems.map((value) => ({ value, label: value }))}
+                    placeholder="Select an operating system"
+                    error={form.errors.os}
+                  />
+                </div>
 
-            <div>
-              <FormField>
-                <div className="flex items-center justify-between">
-                  <Label>Services</Label>
-                  <ServerTemplates services={form.data.services} onTemplateChanged={serverTemplateChanged} />
-                </div>
+                {form.data.provider === 'custom' && (
+                  <div className="grid grid-cols-2 items-start gap-6">
+                    <FormInput
+                      label="SSH IP"
+                      id="ip"
+                      type="text"
+                      autoComplete="ip"
+                      value={form.data.ip}
+                      onChange={(e) => form.setData('ip', e.target.value)}
+                      error={form.errors.ip}
+                    />
+                    <FormInput
+                      label="SSH Port"
+                      id="port"
+                      type="text"
+                      autoComplete="port"
+                      value={form.data.port}
+                      onChange={(e) => form.setData('port', parseInt(e.target.value))}
+                      error={form.errors.port}
+                    />
+                  </div>
+                )}
+
                 <div>
-                  <DataTable columns={servicesColumns} data={form.data.services} />
+                  <FormField>
+                    <div className="flex items-center justify-between">
+                      <Label>Services</Label>
+                      <ServerTemplates services={form.data.services} onTemplateChanged={serverTemplateChanged} />
+                    </div>
+                    <div>
+                      <DataTable columns={servicesColumns} data={form.data.services} />
+                    </div>
+                    {Object.entries(form.errors)
+                      .filter(([key, value]) => {
+                        return key.startsWith('services') && value.length > 0;
+                      })
+                      .map(([key, value]) => (
+                        <InputError key={key} message={value} />
+                      ))}
+                  </FormField>
                 </div>
-                {Object.entries(form.errors)
-                  .filter(([key, value]) => {
-                    return key.startsWith('services') && value.length > 0;
-                  })
-                  .map(([key, value]) => (
-                    <InputError key={key} message={value} />
-                  ))}
-              </FormField>
-            </div>
-          </FormFields>
-        </Form>
-        <SheetFooter>
-          <div className="flex items-center gap-2">
-            <Button type="submit" form="create-server-form" tabIndex={4} disabled={form.processing}>
-              {form.processing && <LoaderCircle className="animate-spin" />} Create
-            </Button>
-            <SheetClose asChild>
+              </FormFields>
+            </Form>
+          </div>
+
+          {/* Footer */}
+          <DialogFooter className="-mx-0 -mb-0 rounded-b-xl border-t border-foreground/6 bg-muted/30 px-5 py-4">
+            <FormSubmit form="create-server-form" tabIndex={4} processing={form.processing} successful={form.recentlySuccessful}>
+              Create
+            </FormSubmit>
+            <DialogClose asChild>
               <Button variant="outline" disabled={form.processing}>
                 Cancel
               </Button>
-            </SheetClose>
-          </div>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+            </DialogClose>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
-}
+};
+
+export default CreateServer;

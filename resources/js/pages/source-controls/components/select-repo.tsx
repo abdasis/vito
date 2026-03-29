@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
-import { Combobox } from '@/components/ui/combobox';
+import { SimpleCombobox } from '@/components/ui/simple-combobox';
 
 interface SelectRepoProps {
   sourceControlId: string;
@@ -63,7 +63,7 @@ export default function SelectRepo({ sourceControlId, value, onValueChange, plac
         <Input id="repository" type="text" value={value ?? ''} onChange={(e) => onValueChange(e.target.value)} placeholder={placeholder} />
       )}
       {!gettingRepos && repos.length !== 0 && sourceControlId && (
-        <Combobox
+        <SimpleCombobox
           items={comboboxItems}
           value={value}
           searchText="Filter repositories..."

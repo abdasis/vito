@@ -1,4 +1,5 @@
-import { LoaderCircle } from 'lucide-react';
+import { LoaderCircle, X as XIcon } from 'lucide-react';
+import { ProviderIcon } from '@/components/provider-icon';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -75,77 +76,95 @@ export default function ConnectServerProvider({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-h-screen overflow-y-auto sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>Connect to server provider</DialogTitle>
-          <DialogDescription className="sr-only">Connect to a new server provider</DialogDescription>
-        </DialogHeader>
-        <Form id="create-server-provider-form" onSubmit={submit} className="p-4">
-          <FormFields>
-            <FormField>
-              <Label htmlFor="provider">Provider</Label>
-              <Select
-                value={form.data.provider}
-                onValueChange={(value) => {
-                  form.setData('provider', value);
-                  form.clearErrors();
-                }}
-              >
-                <SelectTrigger id="provider">
-                  <SelectValue placeholder="Select a provider" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {Object.entries(page.props.configs.server_provider.providers).map(
-                      ([key, provider]) =>
-                        key !== 'custom' && (
-                          <SelectItem key={key} value={key}>
-                            {provider.label}
-                          </SelectItem>
-                        ),
-                    )}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-              <InputError message={form.errors.provider} />
-            </FormField>
-            <FormField>
-              <Label htmlFor="name">Name</Label>
-              <Input type="text" name="name" id="name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} />
-              <InputError message={form.errors.name} />
-            </FormField>
-            {page.props.configs.server_provider.providers[form.data.provider]?.form?.map((field: DynamicFieldConfig) => (
-              <DynamicField
-                key={`field-${field.name}`}
-                /*@ts-expect-error dynamic types*/
-                value={form.data[field.name]}
-                /*@ts-expect-error dynamic types*/
-                onChange={(value) => form.setData(field.name, value)}
-                config={field}
-                /*@ts-expect-error dynamic types*/
-                error={form.errors[field.name]}
-              />
-            ))}
-            <FormField>
-              <div className="flex items-center space-x-3">
-                <Checkbox id="global" name="global" checked={form.data.global} onClick={() => form.setData('global', !form.data.global)} />
-                <Label htmlFor="global">Is global (accessible in all projects)</Label>
-              </div>
-              <InputError message={form.errors.global} />
-            </FormField>
-          </FormFields>
-        </Form>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="outline">
-              Cancel
+      <DialogContent
+        showCloseButton={false}
+        className="w-full max-w-xl overflow-hidden rounded-2xl border-0 bg-gradient-to-b from-muted/60 to-muted/30 p-2 shadow-xl ring-1 ring-foreground/8 backdrop-blur-sm"
+      >
+        <div className="flex flex-col gap-0 overflow-hidden rounded-xl bg-background/90 ring-1 ring-foreground/6">
+          <DialogHeader className="flex flex-row items-center justify-between gap-2 border-b border-foreground/6 bg-muted/30 px-5 py-4">
+            <div className="flex flex-col gap-0.5">
+              <DialogTitle>Connect to server provider</DialogTitle>
+              <DialogDescription>Connect a new cloud provider to manage servers</DialogDescription>
+            </div>
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon" className="size-7 shrink-0">
+                <XIcon className="size-4" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </DialogClose>
+          </DialogHeader>
+
+          <div className="max-h-[70vh] overflow-y-auto">
+            <Form id="create-server-provider-form" onSubmit={submit} className="p-5">
+              <FormFields>
+                <FormField>
+                  <Label htmlFor="provider">Provider</Label>
+                  <Select
+                    value={form.data.provider}
+                    onValueChange={(value) => {
+                      form.setData('provider', value);
+                      form.clearErrors();
+                    }}
+                  >
+                    <SelectTrigger id="provider" className="w-full">
+                      <SelectValue placeholder="Select a provider" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {Object.entries(page.props.configs.server_provider.providers).map(
+                          ([key, provider]) =>
+                            key !== 'custom' && (
+                              <SelectItem key={key} value={key}>
+                                <ProviderIcon provider={key} className="size-3.5" />
+                                {provider.label}
+                              </SelectItem>
+                            ),
+                        )}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <InputError message={form.errors.provider} />
+                </FormField>
+                <FormField>
+                  <Label htmlFor="name">Name</Label>
+                  <Input type="text" name="name" id="name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} />
+                  <InputError message={form.errors.name} />
+                </FormField>
+                {page.props.configs.server_provider.providers[form.data.provider]?.form?.map((field: DynamicFieldConfig) => (
+                  <DynamicField
+                    key={`field-${field.name}`}
+                    /*@ts-expect-error dynamic types*/
+                    value={form.data[field.name]}
+                    /*@ts-expect-error dynamic types*/
+                    onChange={(value) => form.setData(field.name, value)}
+                    config={field}
+                    /*@ts-expect-error dynamic types*/
+                    error={form.errors[field.name]}
+                  />
+                ))}
+                <FormField>
+                  <div className="flex items-center space-x-3">
+                    <Checkbox id="global" name="global" checked={form.data.global} onClick={() => form.setData('global', !form.data.global)} />
+                    <Label htmlFor="global">Is global (accessible in all projects)</Label>
+                  </div>
+                  <InputError message={form.errors.global} />
+                </FormField>
+              </FormFields>
+            </Form>
+          </div>
+
+          <DialogFooter className="-mx-0 -mb-0 rounded-b-xl border-t border-foreground/6 bg-muted/30 px-5 py-4">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="button" onClick={submit} disabled={form.processing}>
+              {form.processing && <LoaderCircle className="animate-spin" />}
+              Connect
             </Button>
-          </DialogClose>
-          <Button type="button" onClick={submit} disabled={form.processing}>
-            {form.processing && <LoaderCircle className="animate-spin" />}
-            Connect
-          </Button>
-        </DialogFooter>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

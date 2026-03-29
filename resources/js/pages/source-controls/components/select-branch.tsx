@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
-import { Combobox } from '@/components/ui/combobox';
+import { SimpleCombobox } from '@/components/ui/simple-combobox';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 
@@ -70,7 +70,7 @@ export default function SelectBranch({ sourceControlId, repository, value, onVal
         <Input id="branch" type="text" value={value ?? ''} onChange={(e) => onValueChange(e.target.value)} placeholder={placeholder} />
       )}
       {!gettingBranches && branches.length !== 0 && sourceControlId && repository && (
-        <Combobox
+        <SimpleCombobox
           items={comboboxItems}
           value={value}
           searchText="Filter branches..."

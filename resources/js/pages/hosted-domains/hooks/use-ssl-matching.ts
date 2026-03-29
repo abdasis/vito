@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AvailableSsl } from '@/types/hosted-domain';
 import axios from 'axios';
 
-type SetData = (callback: (prev: Record<string, string>) => Record<string, string>) => void;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SetData = (callback: (prev: any) => any) => void;
 
 interface UseSslMatchingOptions {
   serverId: number;
