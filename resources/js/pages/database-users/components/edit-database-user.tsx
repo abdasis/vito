@@ -9,17 +9,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Form, FormField, FormFields } from '@/components/ui/form';
+import { Form, FormFields } from '@/components/ui/form';
 import { useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
-import { LoaderCircle } from 'lucide-react';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import InputError from '@/components/ui/input-error';
-import { Checkbox } from '@/components/ui/checkbox';
+import { LoaderCircle, XIcon } from 'lucide-react';
 import { DatabaseUser } from '@/types/database-user';
 import FormSuccessful from '@/components/form-successful';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { FormPassword, FormSelect, FormCheckbox, FormInput } from '@/components/form';
 
 type EditForm = {
   password: string;
@@ -28,7 +24,7 @@ type EditForm = {
   permission: string;
 };
 
-export default function EditDatabaseUser({
+const EditDatabaseUser = ({
   databaseUser,
   onDatabaseUserUpdated,
   children,
@@ -36,7 +32,7 @@ export default function EditDatabaseUser({
   databaseUser: DatabaseUser;
   onDatabaseUserUpdated?: () => void;
   children: ReactNode;
-}) {
+}) => {
   const [open, setOpen] = useState(false);
 
   const form = useForm<EditForm>({
@@ -80,67 +76,82 @@ export default function EditDatabaseUser({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Edit database user [{databaseUser.username}]</DialogTitle>
-          <DialogDescription className="sr-only">Edit database user</DialogDescription>
-        </DialogHeader>
-        <Form className="p-4" id="edit-database-user-form" onSubmit={submit}>
-          <FormFields>
-            <FormField>
-              <Label htmlFor="password">New Password (leave blank to keep current)</Label>
-              <Input
-                type="password"
-                id="password"
-                name="password"
-                value={form.data.password}
-                onChange={(e) => form.setData('password', e.target.value)}
-              />
-              <InputError message={form.errors.password} />
-            </FormField>
-            <FormField>
-              <Label htmlFor="permission">Permission</Label>
-              <Select value={form.data.permission} onValueChange={(value) => form.setData('permission', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select permission" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin (Full Access)</SelectItem>
-                  <SelectItem value="write">Write (No Drop/Truncate)</SelectItem>
-                  <SelectItem value="read">Read Only</SelectItem>
-                </SelectContent>
-              </Select>
-              <InputError message={form.errors.permission} />
-            </FormField>
-            <FormField>
-              <div className="flex items-center space-x-3">
-                <Checkbox id="remote" name="remote" checked={form.data.remote} onClick={() => form.setData('remote', !form.data.remote)} />
-                <Label htmlFor="remote">Allow remote connection</Label>
-              </div>
-              <InputError message={form.errors.remote} />
-            </FormField>
-            {form.data.remote && (
-              <FormField>
-                <Label htmlFor="host">Allow connection from (% for all)</Label>
-                <Input type="text" id="host" name="host" value={form.data.host} onChange={(e) => form.setData('host', e.target.value)} />
-                <InputError message={form.errors.host} />
-              </FormField>
-            )}
-          </FormFields>
-        </Form>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="outline">
-              Cancel
+      <DialogContent
+        showCloseButton={false}
+        className="w-full max-w-lg overflow-hidden rounded-2xl border-0 bg-gradient-to-b from-muted/60 to-muted/30 p-2 shadow-xl ring-1 ring-foreground/8 backdrop-blur-sm"
+      >
+        <div className="flex flex-col gap-0 overflow-hidden rounded-xl bg-background/90 ring-1 ring-foreground/6">
+          <DialogHeader className="flex flex-row items-center justify-between gap-2 border-b border-foreground/6 bg-muted/30 px-5 py-4">
+            <div className="flex flex-col gap-0.5">
+              <DialogTitle>Edit database user [{databaseUser.username}]</DialogTitle>
+              <DialogDescription>Update password, permissions, or remote access</DialogDescription>
+            </div>
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon" className="size-7 shrink-0">
+                <XIcon className="size-4" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </DialogClose>
+          </DialogHeader>
+
+          <div className="max-h-[70vh] overflow-y-auto">
+            <Form className="p-5" id="edit-database-user-form" onSubmit={submit}>
+              <FormFields>
+                <FormPassword
+                  label="New Password"
+                  name="password"
+                  value={form.data.password}
+                  onChange={(e) => form.setData('password', e.target.value)}
+                  error={form.errors.password}
+                  description="Leave blank to keep current password"
+                />
+                <FormSelect
+                  label="Permission"
+                  value={form.data.permission}
+                  onValueChange={(value) => form.setData('permission', value)}
+                  options={[
+                    { value: 'admin', label: 'Admin (Full Access)' },
+                    { value: 'write', label: 'Write (No Drop/Truncate)' },
+                    { value: 'read', label: 'Read Only' },
+                  ]}
+                  placeholder="Select permission"
+                  error={form.errors.permission}
+                />
+                <FormCheckbox
+                  label="Allow remote connection"
+                  checked={form.data.remote}
+                  onCheckedChange={(checked) => form.setData('remote', !!checked)}
+                  error={form.errors.remote}
+                />
+                {form.data.remote && (
+                  <FormInput
+                    label="Allow connection from (% for all)"
+                    name="host"
+                    value={form.data.host}
+                    onChange={(e) => form.setData('host', e.target.value)}
+                    error={form.errors.host}
+                  />
+                )}
+              </FormFields>
+            </Form>
+          </div>
+
+          <DialogFooter className="-mx-0 -mb-0 rounded-b-xl border-t border-foreground/6 bg-muted/30 px-5 py-4">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="button" onClick={submit} disabled={form.processing}>
+              {form.processing && <LoaderCircle className="animate-spin" />}
+              <FormSuccessful successful={form.recentlySuccessful} />
+              Save
             </Button>
-          </DialogClose>
-          <Button type="button" onClick={submit} disabled={form.processing}>
-            {form.processing && <LoaderCircle className="animate-spin" />}
-            <FormSuccessful successful={form.recentlySuccessful} />
-            Save
-          </Button>
-        </DialogFooter>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
-}
+};
+
+export default EditDatabaseUser;

@@ -12,7 +12,7 @@ import {
 import { Form, FormField, FormFields } from '@/components/ui/form';
 import { useForm } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
-import { LoaderCircle } from 'lucide-react';
+import { LoaderCircle, XIcon } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import InputError from '@/components/ui/input-error';
@@ -105,82 +105,99 @@ export default function CreateDatabase({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Create database</DialogTitle>
-          <DialogDescription className="sr-only">Create new database</DialogDescription>
-        </DialogHeader>
-        <Form className="p-4" id="create-database-form" onSubmit={submit}>
-          <FormFields>
-            <FormField>
-              <Label htmlFor="name">Name</Label>
-              <Input type="text" id="name" name="name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} />
-              <InputError message={form.errors.name} />
-            </FormField>
-            <FormField>
-              <Label htmlFor="charset">Charset</Label>
-              <Select onValueChange={handleCharsetChange} value={form.data.charset}>
-                <SelectTrigger id="charset">
-                  <SelectValue placeholder="Select charset" />
-                </SelectTrigger>
-                <SelectContent>
-                  {charsets.map((charset) => (
-                    <SelectItem key={charset} value={charset}>
-                      {charset}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <InputError message={form.errors.charset} />
-            </FormField>
-            <FormField>
-              <Label htmlFor="collation">Collation</Label>
-              <Select onValueChange={(value) => form.setData('collation', value)} value={form.data.collation}>
-                <SelectTrigger id="collation">
-                  <SelectValue placeholder="Select collation" />
-                </SelectTrigger>
-                <SelectContent>
-                  {collations.map((collation) => (
-                    <SelectItem key={collation} value={collation}>
-                      {collation}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <InputError message={form.errors.collation} />
-            </FormField>
-            <FormField>
-              <div className="flex items-center space-x-3">
-                <Checkbox id="user" name="user" checked={form.data.user} onClick={() => form.setData('user', !form.data.user)} />
-                <Label htmlFor="user">Link user to database</Label>
-              </div>
-              <InputError message={form.errors.user} />
-            </FormField>
-            {form.data.user && (
-              <FormField>
-                <Label htmlFor="existing_user_id">Database User</Label>
-                <DatabaseUserSelect
-                  serverId={server}
-                  value={form.data.existing_user_id}
-                  onValueChange={(value) => form.setData('existing_user_id', value)}
-                  create={true}
-                />
-                <InputError message={form.errors.existing_user_id} />
-              </FormField>
-            )}
-          </FormFields>
-        </Form>
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="outline">
-              Cancel
+      <DialogContent
+        showCloseButton={false}
+        className="w-full max-w-lg overflow-hidden rounded-2xl border-0 bg-gradient-to-b from-muted/60 to-muted/30 p-2 shadow-xl ring-1 ring-foreground/8 backdrop-blur-sm"
+      >
+        <div className="flex flex-col gap-0 overflow-hidden rounded-xl bg-background/90 ring-1 ring-foreground/6">
+          <DialogHeader className="flex flex-row items-center justify-between gap-2 border-b border-foreground/6 bg-muted/30 px-5 py-4">
+            <div className="flex flex-col gap-0.5">
+              <DialogTitle>Create database</DialogTitle>
+              <DialogDescription>Create a new database on this server</DialogDescription>
+            </div>
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon" className="size-7 shrink-0">
+                <XIcon className="size-4" />
+                <span className="sr-only">Close</span>
+              </Button>
+            </DialogClose>
+          </DialogHeader>
+
+          <div className="max-h-[70vh] overflow-y-auto">
+            <Form className="p-5" id="create-database-form" onSubmit={submit}>
+              <FormFields>
+                <FormField>
+                  <Label htmlFor="name">Name</Label>
+                  <Input type="text" id="name" name="name" value={form.data.name} onChange={(e) => form.setData('name', e.target.value)} />
+                  <InputError message={form.errors.name} />
+                </FormField>
+                <FormField>
+                  <Label htmlFor="charset">Charset</Label>
+                  <Select onValueChange={handleCharsetChange} value={form.data.charset}>
+                    <SelectTrigger id="charset">
+                      <SelectValue placeholder="Select charset" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {charsets.map((charset) => (
+                        <SelectItem key={charset} value={charset}>
+                          {charset}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <InputError message={form.errors.charset} />
+                </FormField>
+                <FormField>
+                  <Label htmlFor="collation">Collation</Label>
+                  <Select onValueChange={(value) => form.setData('collation', value)} value={form.data.collation}>
+                    <SelectTrigger id="collation">
+                      <SelectValue placeholder="Select collation" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {collations.map((collation) => (
+                        <SelectItem key={collation} value={collation}>
+                          {collation}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <InputError message={form.errors.collation} />
+                </FormField>
+                <FormField>
+                  <div className="flex items-center space-x-3">
+                    <Checkbox id="user" name="user" checked={form.data.user} onClick={() => form.setData('user', !form.data.user)} />
+                    <Label htmlFor="user">Link user to database</Label>
+                  </div>
+                  <InputError message={form.errors.user} />
+                </FormField>
+                {form.data.user && (
+                  <FormField>
+                    <Label htmlFor="existing_user_id">Database User</Label>
+                    <DatabaseUserSelect
+                      serverId={server}
+                      value={form.data.existing_user_id}
+                      onValueChange={(value) => form.setData('existing_user_id', value)}
+                      create={true}
+                    />
+                    <InputError message={form.errors.existing_user_id} />
+                  </FormField>
+                )}
+              </FormFields>
+            </Form>
+          </div>
+
+          <DialogFooter className="-mx-0 -mb-0 rounded-b-xl border-t border-foreground/6 bg-muted/30 px-5 py-4">
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </DialogClose>
+            <Button type="button" onClick={submit} disabled={form.processing}>
+              {form.processing && <LoaderCircle className="animate-spin" />}
+              Create
             </Button>
-          </DialogClose>
-          <Button type="button" onClick={submit} disabled={form.processing}>
-            {form.processing && <LoaderCircle className="animate-spin" />}
-            Create
-          </Button>
-        </DialogFooter>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
