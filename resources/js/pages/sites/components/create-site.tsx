@@ -1,11 +1,19 @@
 import { ReactNode, useState, FormEventHandler, useEffect } from 'react';
-import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Form, FormField, FormFields } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { LoaderCircle, HelpCircle } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { LoaderCircle, HelpCircle, XIcon } from 'lucide-react';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useForm, usePage } from '@inertiajs/react';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -31,9 +39,11 @@ type CreateSiteForm = {
   repository: string;
   branch: string;
   user: string;
-};
+  database: string;
+  database_user: string;
+} & Record<string, string>;
 
-function extractNameFromDomain(domain: string): string {
+const extractNameFromDomain = (domain: string): string => {
   if (!domain) return '';
   let name = domain.replace(/^https?:\/\//, '');
   name = name.replace(/^www\./, '');
@@ -42,9 +52,9 @@ function extractNameFromDomain(domain: string): string {
     return parts[0].toLowerCase().replace(/[^a-z0-9]/g, '');
   }
   return '';
-}
+};
 
-export default function CreateSite({
+const CreateSite = ({
   server,
   defaultOpen,
   onOpenChange,
@@ -54,7 +64,7 @@ export default function CreateSite({
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   children: ReactNode;
-}) {
+}) => {
   const page = usePage<SharedData>();
   const [open, setOpen] = useState(defaultOpen || false);
   const [userManuallyEdited, setUserManuallyEdited] = useState(false);
@@ -81,6 +91,8 @@ export default function CreateSite({
     repository: '',
     branch: '',
     user: '',
+    database: '',
+    database_user: '',
   });
 
   const submit: FormEventHandler = (e) => {
@@ -93,12 +105,8 @@ export default function CreateSite({
 
     if (typeConfig?.form) {
       typeConfig.form.forEach((field: DynamicFieldConfig) => {
-        if (field.default !== undefined) {
-          /* @ts-expect-error dynamic types */
-          if (form.data[field.name] === '' || form.data[field.name] === undefined) {
-            /* @ts-expect-error dynamic types */
-            form.setData(field.name, field.default);
-          }
+        if (field.default !== undefined && (form.data[field.name] === '' || form.data[field.name] === undefined)) {
+          form.setData(field.name, String(field.default));
         }
       });
     }
@@ -167,23 +175,20 @@ export default function CreateSite({
     }
 
     if (field.name === 'database') {
+      const props = (field.componentProps ?? {}) as { defaultCharset?: string; defaultCollation?: string };
       return (
         <FormField key={`field-${field.name}`}>
           <Label htmlFor="database">Database</Label>
           <DatabaseSelect
             id="database"
-            key={`field-${field.name}`}
             name="database"
             serverId={parseInt(form.data.server)}
-            /*@ts-expect-error dynamic types*/
             value={form.data.database}
-            /*@ts-expect-error dynamic types*/
             onValueChange={(value) => form.setData('database', value)}
             createWithUser={true}
-            defaultCharset={field.componentProps?.defaultCharset as string | undefined}
-            defaultCollation={field.componentProps?.defaultCollation as string | undefined}
+            defaultCharset={props.defaultCharset}
+            defaultCollation={props.defaultCollation}
           />
-          {/*@ts-expect-error dynamic types*/}
           <InputError message={form.errors.database} />
         </FormField>
       );
@@ -195,16 +200,12 @@ export default function CreateSite({
           <Label htmlFor="database-user">Database user</Label>
           <DatabaseUserSelect
             id="database-user"
-            key={`field-${field.name}`}
             name="database_user"
             serverId={parseInt(form.data.server)}
-            /*@ts-expect-error dynamic types*/
             value={form.data.database_user}
-            /*@ts-expect-error dynamic types*/
             onValueChange={(value) => form.setData('database_user', value)}
             create={false}
           />
-          {/*@ts-expect-error dynamic types*/}
           <InputError message={form.errors.database_user} />
         </FormField>
       );
@@ -213,136 +214,169 @@ export default function CreateSite({
     return (
       <DynamicField
         key={`field-${field.name}`}
-        /*@ts-expect-error dynamic types*/
         value={form.data[field.name]}
-        /*@ts-expect-error dynamic types*/
-        onChange={(value) => form.setData(field.name, value)}
+        onChange={(value) => form.setData(field.name, String(value))}
         config={field}
-        /*@ts-expect-error dynamic types*/
         error={form.errors[field.name]}
       />
     );
   };
 
   return (
-    <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetTrigger asChild>{children}</SheetTrigger>
-      <SheetContent className="w-full lg:max-w-3xl">
-        <SheetHeader>
-          <SheetTitle>Create site</SheetTitle>
-          <SheetDescription>Fill in the details to create a new site.</SheetDescription>
-        </SheetHeader>
-        <Form id="create-site-form" className="p-4" onSubmit={submit}>
-          <FormFields>
-            {server === undefined && (
-              <FormField>
-                <Label htmlFor="server">Server</Label>
-                <ServerSelect value={form.data.server} onValueChange={(value) => form.setData('server', value ? value.id.toString() : '')} />
-                <InputError message={form.errors.server} />
-              </FormField>
-            )}
-
-            {form.data.server && (
-              <>
-                <FormField>
-                  <Label htmlFor="type">Site Type</Label>
-                  <Select value={form.data.type} onValueChange={(value) => form.setData('type', value)}>
-                    <SelectTrigger id="type">
-                      <SelectValue placeholder="Select site type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {Object.entries(page.props.configs.site.types).map(([key, type]) => (
-                          <SelectItem key={`type-${key}`} value={key}>
-                            {type.label}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  <InputError message={form.errors.type} />
-                </FormField>
-
-                <FormField>
-                  <Label htmlFor="domain">Domain</Label>
-                  <Input
-                    id="domain"
-                    type="text"
-                    value={form.data.domain}
-                    onChange={(e) => {
-                      const newDomain = e.target.value;
-                      if (!userManuallyEdited) {
-                        const extractedName = extractNameFromDomain(newDomain);
-                        form.setData((prev) => ({ ...prev, domain: newDomain, user: extractedName }));
-                      } else {
-                        form.setData('domain', newDomain);
-                      }
-                    }}
-                    placeholder="vitodeploy.com"
-                  />
-                  <InputError message={form.errors.domain} />
-                </FormField>
-
-                <FormField>
-                  <Label htmlFor="user" className="flex items-center gap-1">
-                    Isolated User
-                    <Dialog>
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <DialogTrigger asChild>
-                              <button type="button" tabIndex={-1} className="text-muted-foreground hover:text-foreground">
-                                <HelpCircle className="h-4 w-4" />
-                              </button>
-                            </DialogTrigger>
-                          </TooltipTrigger>
-                          <TooltipContent>Why?</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Why Isolated Users?</DialogTitle>
-                          <DialogDescription>
-                            Isolated users are mandatory to ensure security for your sites. If a site has security vulnerabilities and gets
-                            compromised, the attacker cannot take full control of the server because the site runs under its own isolated user with
-                            limited permissions.
-                          </DialogDescription>
-                        </DialogHeader>
-                      </DialogContent>
-                    </Dialog>
-                  </Label>
-                  <Input
-                    id="user"
-                    type="text"
-                    value={form.data.user}
-                    onChange={(e) => {
-                      setUserManuallyEdited(true);
-                      form.setData('user', e.target.value);
-                    }}
-                    placeholder="e.g. mysite"
-                  />
-                  <p className="text-muted-foreground text-xs">The isolated user for the site. Must be unique on the server.</p>
-                  <InputError message={form.errors.user} />
-                </FormField>
-
-                {page.props.configs.site.types[form.data.type].form?.map((config) => getFormField(config))}
-              </>
-            )}
-          </FormFields>
-        </Form>
-        <SheetFooter>
-          <div className="flex items-center gap-2">
-            <Button type="submit" form="create-site-form" disabled={form.processing || !form.data.server}>
-              {form.processing && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />} Create
-            </Button>
-            <SheetClose asChild>
-              <Button variant="outline" disabled={form.processing}>
-                Cancel
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>{children}</DialogTrigger>
+      <DialogContent
+        showCloseButton={false}
+        className="w-full max-w-3xl overflow-hidden rounded-2xl border-0 bg-gradient-to-b from-muted/60 to-muted/30 p-2 shadow-xl ring-1 ring-foreground/8 backdrop-blur-sm"
+      >
+        <div className="flex flex-col gap-0 overflow-hidden rounded-xl bg-background/90 ring-1 ring-foreground/6">
+          <DialogHeader className="flex flex-row items-center justify-between gap-2 border-b border-foreground/6 bg-muted/30 px-5 py-4">
+            <div className="flex flex-col gap-0.5">
+              <DialogTitle>Create site</DialogTitle>
+              <DialogDescription>Fill in the details to create a new site.</DialogDescription>
+            </div>
+            <DialogClose asChild>
+              <Button variant="ghost" size="icon" className="size-7 shrink-0">
+                <XIcon className="size-4" />
+                <span className="sr-only">Close</span>
               </Button>
-            </SheetClose>
+            </DialogClose>
+          </DialogHeader>
+
+          <div className="max-h-[70vh] overflow-y-auto">
+            <div className="p-5">
+              <Form id="create-site-form" onSubmit={submit}>
+                <FormFields>
+                  {server === undefined && (
+                    <FormField>
+                      <Label htmlFor="server">Server</Label>
+                      <ServerSelect value={form.data.server} onValueChange={(value) => form.setData('server', value ? value.id.toString() : '')} />
+                      <InputError message={form.errors.server} />
+                    </FormField>
+                  )}
+
+                  {form.data.server && (
+                    <>
+                      <FormField>
+                        <Label htmlFor="type">Site Type</Label>
+                        <Select value={form.data.type} onValueChange={(value) => form.setData('type', value)}>
+                          <SelectTrigger id="type">
+                            <SelectValue placeholder="Select site type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              {Object.entries(page.props.configs.site.types).map(([key, type]) => (
+                                <SelectItem key={`type-${key}`} value={key}>
+                                  {type.label}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                        <InputError message={form.errors.type} />
+                      </FormField>
+
+                      <FormField>
+                        <Label htmlFor="domain">Domain</Label>
+                        <Input
+                          id="domain"
+                          type="text"
+                          value={form.data.domain}
+                          onChange={(e) => {
+                            const newDomain = e.target.value;
+                            if (!userManuallyEdited) {
+                              const extractedName = extractNameFromDomain(newDomain);
+                              form.setData((prev) => ({ ...prev, domain: newDomain, user: extractedName }));
+                            } else {
+                              form.setData('domain', newDomain);
+                            }
+                          }}
+                          placeholder="vitodeploy.com"
+                        />
+                        <InputError message={form.errors.domain} />
+                      </FormField>
+
+                      <FormField>
+                        <Label htmlFor="user" className="flex items-center gap-1">
+                          Isolated User
+                          <Dialog>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <DialogTrigger asChild>
+                                    <button type="button" tabIndex={-1} className="text-muted-foreground hover:text-foreground">
+                                      <HelpCircle className="h-4 w-4" />
+                                    </button>
+                                  </DialogTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent>Why?</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <DialogContent
+                              showCloseButton={false}
+                              className="w-full max-w-md overflow-hidden rounded-2xl border-0 bg-gradient-to-b from-muted/60 to-muted/30 p-2 shadow-xl ring-1 ring-foreground/8 backdrop-blur-sm"
+                            >
+                              <div className="flex flex-col gap-0 overflow-hidden rounded-xl bg-background/90 ring-1 ring-foreground/6">
+                                <DialogHeader className="flex flex-row items-center justify-between gap-2 border-b border-foreground/6 bg-muted/30 px-5 py-4">
+                                  <div className="flex flex-col gap-0.5">
+                                    <DialogTitle>Why Isolated Users?</DialogTitle>
+                                  </div>
+                                  <DialogClose asChild>
+                                    <Button variant="ghost" size="icon" className="size-7 shrink-0">
+                                      <XIcon className="size-4" />
+                                      <span className="sr-only">Close</span>
+                                    </Button>
+                                  </DialogClose>
+                                </DialogHeader>
+                                <div className="p-5">
+                                  <DialogDescription>
+                                    Isolated users are mandatory to ensure security for your sites. If a site has security vulnerabilities and gets
+                                    compromised, the attacker cannot take full control of the server because the site runs under its own isolated user
+                                    with limited permissions.
+                                  </DialogDescription>
+                                </div>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </Label>
+                        <Input
+                          id="user"
+                          type="text"
+                          value={form.data.user}
+                          onChange={(e) => {
+                            setUserManuallyEdited(true);
+                            form.setData('user', e.target.value);
+                          }}
+                          placeholder="e.g. mysite"
+                        />
+                        <p className="text-muted-foreground text-xs">The isolated user for the site. Must be unique on the server.</p>
+                        <InputError message={form.errors.user} />
+                      </FormField>
+
+                      {page.props.configs.site.types[form.data.type].form?.map((config) => getFormField(config))}
+                    </>
+                  )}
+                </FormFields>
+              </Form>
+            </div>
           </div>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+
+          <DialogFooter className="-mx-0 -mb-0 rounded-b-xl border-t border-foreground/6 bg-muted/30 px-5 py-4">
+            <div className="flex items-center gap-2">
+              <Button type="submit" form="create-site-form" disabled={form.processing || !form.data.server}>
+                {form.processing && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />} Create
+              </Button>
+              <DialogClose asChild>
+                <Button variant="outline" disabled={form.processing}>
+                  Cancel
+                </Button>
+              </DialogClose>
+            </div>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
-}
+};
+
+export default CreateSite;
