@@ -1,0 +1,46 @@
+import{c as i,R as f,j as o,q as y,r as m,n as k}from"./app-D0jqr-9c.js";import b from"./header-ClOvd-5A.js";import{U as g,a as M,C as _,K as x,b as w,L as D}from"./layout-BlCPesNm.js";import{s as d}from"./site-helper-CrIeK8sC.js";import{D as n}from"./database-DneTqMgM.js";import{G as S}from"./globe-BlryaG6d.js";import{L as a}from"./instant-logs-CXWMHCSP.js";import{M as A,C}from"./slash-DrmQsgVq.js";import{L}from"./lock-Dmb8551S.js";/**
+ * @license lucide-react v1.7.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const H=[["path",{d:"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z",key:"hh9hay"}],["path",{d:"m3.3 7 8.7 5 8.7-5",key:"g66t2b"}],["path",{d:"M12 22V12",key:"d0xqtd"}]],c=i("box",H);/**
+ * @license lucide-react v1.7.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const P=[["path",{d:"M3 3v16a2 2 0 0 0 2 2h16",key:"c24i48"}],["path",{d:"m19 9-5 5-4-4-3 3",key:"2osh9i"}]],j=i("chart-line",P);/**
+ * @license lucide-react v1.7.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const N=[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"M12 6v6l4 2",key:"mmk7yg"}]],v=i("clock",N);/**
+ * @license lucide-react v1.7.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const R=[["path",{d:"M12 13v8",key:"1l5pq0"}],["path",{d:"M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242",key:"1pljnt"}],["path",{d:"m8 17 4-4 4 4",key:"1quai1"}]],$=i("cloud-upload",R);/**
+ * @license lucide-react v1.7.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const q=[["path",{d:"M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4",key:"1slcih"}]],z=i("flame",q);/**
+ * @license lucide-react v1.7.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const E=[["path",{d:"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8",key:"5wwlr5"}],["path",{d:"M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z",key:"r6nss1"}]],F=i("house",E);/**
+ * @license lucide-react v1.7.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const U=[["path",{d:"M16 5H3",key:"m91uny"}],["path",{d:"M16 12H3",key:"1a2rj7"}],["path",{d:"M9 19H3",key:"s61nz1"}],["path",{d:"m16 16-3 3 3 3",key:"117b85"}],["path",{d:"M21 5v12a2 2 0 0 1-2 2h-6",key:"hey24a"}]],l=i("list-end",U);/**
+ * @license lucide-react v1.7.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const B=[["path",{d:"M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5",key:"qeys4"}],["path",{d:"M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09",key:"u4xsad"}],["path",{d:"M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22.4 0 0 1-4 2z",key:"676m9"}],["path",{d:"M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05",key:"92ym6u"}]],K=i("rocket",B);/**
+ * @license lucide-react v1.7.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const G=[["path",{d:"M14 17H5",key:"gfn3mx"}],["path",{d:"M19 7h-9",key:"6i9tg"}],["circle",{cx:"17",cy:"17",r:"3",key:"18b49y"}],["circle",{cx:"7",cy:"7",r:"3",key:"dfmy0x"}]],h=i("settings-2",G),I=f.forwardRef(({color:p="currentColor",size:e=24,strokeWidth:r=30,className:t,...s},u)=>o.jsx("svg",{ref:u,xmlns:"http://www.w3.org/2000/svg",version:"1.1",viewBox:"0 0 512 512",fill:"none",width:e,height:e,strokeWidth:r,stroke:p,className:t,...s,children:o.jsx("path",{d:"M170.322 349.808c-2.4-15.66-9-28.38-25.020-34.531-6.27-2.4-11.7-6.78-17.88-9.54-7.020-3.15-14.16-6.15-21.57-8.1-5.61-1.5-10.83 1.020-14.16 5.94-3.15 4.62-0.87 8.97 1.77 12.84 2.97 4.35 6.27 8.49 9.6 12.57 5.52 6.78 11.37 13.29 16.74 20.161 5.13 6.57 9.51 13.86 8.76 22.56-1.65 19.080-10.29 34.891-24.21 47.76-1.53 1.38-4.23 2.37-6.21 2.19-8.88-0.96-16.95-4.32-23.46-10.53-7.47-7.11-6.33-15.48 2.61-20.67 2.13-1.23 4.35-2.37 6.3-3.87 5.46-4.11 7.29-11.13 4.32-17.22-1.41-2.94-3-6.12-5.34-8.25-11.43-10.41-22.651-21.151-34.891-30.63-29.671-23.041-44.91-53.52-47.251-90.421-2.64-40.981 6.87-79.231 28.5-114.242 8.19-13.29 17.73-25.951 32.37-32.52 9.96-4.47 20.88-6.99 31.531-9.78 29.311-7.71 58.89-13.5 89.401-8.34 26.28 4.41 45.511 17.94 54.331 43.77 5.79 16.89 7.17 34.35 5.37 52.231-3.54 35.131-29.49 66.541-63.331 75.841-14.67 4.020-22.68 1.77-31.5-10.44-6.33-8.79-11.58-18.36-17.25-27.631-0.84-1.38-1.44-2.97-2.16-4.44-0.69-1.47-1.44-2.88-2.16-4.35 2.13 15.24 5.67 29.911 13.98 42.99 4.5 7.11 10.5 12.36 19.29 13.14 32.34 2.91 59.641-7.71 79.021-33.721 21.69-29.101 26.461-62.581 20.19-97.831-1.23-6.96-3.3-13.77-4.77-20.7-0.99-4.47 0.78-7.77 5.19-9.33 2.040-0.69 4.14-1.26 6.18-1.68 26.461-5.7 53.221-7.59 80.191-4.86 30.601 3.060 59.551 11.46 85.441 28.471 40.531 26.67 65.641 64.621 79.291 110.522 1.98 6.66 2.28 13.95 2.46 20.971 0.12 4.68-2.88 5.91-6.45 2.97-3.93-3.21-7.53-6.87-10.92-10.65-3.15-3.57-5.67-7.65-8.73-11.4-2.37-2.94-4.44-2.49-5.58 1.17-0.72 2.22-1.35 4.41-1.98 6.63-7.080 25.26-18.24 48.3-36.33 67.711-2.52 2.73-4.77 6.78-5.070 10.38-0.78 9.96-1.35 20.13-0.39 30.060 1.98 21.331 5.070 42.57 7.47 63.871 1.35 12.030-2.52 19.11-13.83 23.281-7.95 2.91-16.47 5.040-24.87 5.64-13.38 0.93-26.88 0.27-40.32 0.27-0.36-15 0.93-29.731-13.17-37.771 2.73-11.13 5.88-21.69 7.77-32.49 1.56-8.97 0.24-17.79-6.060-25.14-5.91-6.93-13.32-8.82-20.101-4.86-20.43 11.91-41.671 11.97-63.301 4.17-9.93-3.6-16.86-1.56-22.351 7.5-5.91 9.75-8.4 20.7-7.74 31.771 0.84 13.95 3.27 27.75 5.13 41.64 1.020 7.77 0.15 9.78-7.56 11.76-17.13 4.35-34.56 4.83-52.081 3.42-0.93-0.090-1.86-0.48-2.46-0.63-0.87-14.55 0.66-29.671-16.68-37.411 7.68-16.29 6.63-33.18 3.99-50.070l-0.060-0.15zM66.761 292.718c2.55-2.4 4.59-6.15 5.31-9.6 1.8-8.64-4.68-20.22-12.18-23.43-3.99-1.74-7.47-1.11-10.29 2.070-6.87 7.77-13.65 15.63-20.401 23.521-1.14 1.35-2.16 2.94-2.97 4.53-2.7 5.19-1.11 8.97 4.65 10.38 3.48 0.87 7.080 1.050 10.65 1.56 9.3-0.9 18.3-2.46 25.23-9v-0.030zM67.541 206.347c-0.030-6.18-5.19-11.34-11.28-11.37-6.27-0.030-11.67 5.58-11.46 11.76 0.27 6.21 5.43 11.19 11.61 11.070 6.24-0.090 11.22-5.19 11.16-11.43l-0.030-0.030z"})}));function ee({children:p}){const e=y(),r=e.props.server.status!=="ready",t=d.getStoredSite(),s=e.props.site||((t==null?void 0:t.server_id)===e.props.server.id?t:null)||null;return m.useEffect(()=>{t&&t.server_id!==e.props.server.id&&d.storeSite(void 0)},[e.props.server.id,t]),typeof window>"u"?null:(route("servers.show",{server:e.props.server.id}),route("servers.show",{server:e.props.server.id}),route("databases",{server:e.props.server.id}),n,e.props.server.services.database,route("databases",{server:e.props.server.id}),route("databases",{server:e.props.server.id}),n,route("database-users",{server:e.props.server.id}),g,route("backups",{server:e.props.server.id}),route("sites",{server:e.props.server.id}),A,e.props.server.services.webserver,s&&s.id&&(route("sites",{server:e.props.server.id}),route("sites",{server:e.props.server.id}),M,route("application",{server:e.props.server.id,site:s.id}),route("application",{server:e.props.server.id,site:s.id}),route("hosted-domains",{server:e.props.server.id,site:s.id}),route("hosted-domains",{server:e.props.server.id,site:s.id}),S,route("site-features",{server:e.props.server.id,site:s.id}),route("commands",{server:e.props.server.id,site:s.id}),_,route("workers.site",{server:e.props.server.id,site:s.id}),e.props.server.services.process_manager,route("cronjobs.site",{server:e.props.server.id,site:s.id}),route("redirects",{server:e.props.server.id,site:s.id}),k,route("sites.logs",{server:e.props.server.id,site:s.id}),a,route("site-settings",{server:e.props.server.id,site:s.id})),route("php",{server:e.props.server.id}),e.props.server.services.php,route("firewall",{server:e.props.server.id}),e.props.server.services.firewall,route("cronjobs",{server:e.props.server.id}),route("workers",{server:e.props.server.id}),e.props.server.services.process_manager,route("server-ssh-keys",{server:e.props.server.id}),x,route("server-ssls",{server:e.props.server.id}),L,route("services",{server:e.props.server.id}),w,route("monitoring",{server:e.props.server.id}),route("logs",{server:e.props.server.id}),a,route("logs",{server:e.props.server.id}),route("logs",{server:e.props.server.id}),a,route("logs.remote",{server:e.props.server.id}),route("logs.remote",{server:e.props.server.id}),C,route("server-features",{server:e.props.server.id}),route("server-settings",{server:e.props.server.id}),o.jsxs(D,{children:[o.jsx(b,{server:e.props.server,site:e.props.site}),o.jsx("div",{children:p})]}))}export{$ as C,K as R,ee as S};
