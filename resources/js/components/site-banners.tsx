@@ -5,6 +5,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Site, SiteWarning } from '@/types/site';
 import { ReactNode, useState } from 'react';
 
+type PendingDomainsWarning = { key: 'pending_domains'; count: number; domains: string[] };
+type SslExpiringWarning = { key: 'ssl_expiring'; count: number; domains: string[]; earliest_expiry: string };
+
 interface BannerItem {
   key: string;
   title: string;
@@ -56,12 +59,13 @@ export default function SiteBanners({ site }: { site: Site }) {
   }
 
   if (pendingDomainsWarning && pendingDomainsWarning.key === 'pending_domains') {
+    const pw = pendingDomainsWarning as PendingDomainsWarning;
     items.push({
       key: 'pending-domains',
-      title: `${pendingDomainsWarning.count} pending ${pendingDomainsWarning.count === 1 ? 'domain' : 'domains'}`,
+      title: `${pw.count} pending ${pw.count === 1 ? 'domain' : 'domains'}`,
       description: (
         <>
-          We could not confirm that <strong>{pendingDomainsWarning.domains.join(', ')}</strong> {pendingDomainsWarning.count === 1 ? 'is' : 'are'}{' '}
+          We could not confirm that <strong>{pw.domains.join(', ')}</strong> {pw.count === 1 ? 'is' : 'are'}{' '}
           pointing to this server. Update your DNS records or activate by force via the Manage Domains page.
         </>
       ),
@@ -76,13 +80,14 @@ export default function SiteBanners({ site }: { site: Site }) {
   }
 
   if (sslExpiringWarning && sslExpiringWarning.key === 'ssl_expiring') {
-    const daysLeft = Math.max(0, Math.ceil((new Date(sslExpiringWarning.earliest_expiry).getTime() - Date.now()) / 86400000));
+    const sw = sslExpiringWarning as SslExpiringWarning;
+    const daysLeft = Math.max(0, Math.ceil((new Date(sw.earliest_expiry).getTime() - Date.now()) / 86400000));
     items.push({
       key: 'ssl-expiring',
-      title: `${sslExpiringWarning.count} SSL ${sslExpiringWarning.count === 1 ? 'certificate' : 'certificates'} expiring in ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'}`,
+      title: `${sw.count} SSL ${sw.count === 1 ? 'certificate' : 'certificates'} expiring in ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'}`,
       description: (
         <>
-          SSL certificates for <strong>{sslExpiringWarning.domains.join(', ')}</strong>{' '}
+          SSL certificates for <strong>{sw.domains.join(', ')}</strong>{' '}
           {daysLeft === 0 ? 'expire today.' : `will expire in ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'}.`}
         </>
       ),

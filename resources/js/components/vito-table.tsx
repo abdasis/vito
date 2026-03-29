@@ -34,7 +34,8 @@ function resolveHref(display: CellRenderProps['displays'][number], row: CellRend
   return route(display.route, params);
 }
 
-function vitoCellRenderer({ row, value, displays, defaultRender }: CellRenderProps & { defaultRender: () => ReactNode }): ReactNode {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function vitoCellRenderer({ row, value, displays, defaultRender }: CellRenderProps & { defaultRender: () => any }): any {
   if (displays.length === 1 && displays[0].type === 'badge') {
     const display = displays[0];
     const color = display.color_field ? (row[display.color_field] as string) : display.variant;

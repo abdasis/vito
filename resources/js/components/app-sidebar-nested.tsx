@@ -33,7 +33,6 @@ import {
   PlugIcon,
   RocketIcon,
   ServerIcon,
-  TagIcon,
   UserIcon,
   UsersIcon,
 } from 'lucide-react';
@@ -207,11 +206,6 @@ export function AppSidebar() {
           title: 'SSH Keys',
           href: route('ssh-keys'),
           icon: KeyIcon,
-        },
-        {
-          title: 'Tags',
-          href: route('tags'),
-          icon: TagIcon,
         },
         {
           title: 'API Keys',
