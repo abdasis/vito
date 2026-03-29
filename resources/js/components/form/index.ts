@@ -1,5 +1,7 @@
 export { FormCheckbox } from './form-checkbox';
 export { FormInput } from './form-input';
+export { FormMultiSelect } from './form-multi-select';
+export type { MultiSelectOption } from './form-multi-select';
 export { FormPassword } from './form-password';
 export { FormLabel } from './form-label';
 export { FormSelect } from './form-select';
