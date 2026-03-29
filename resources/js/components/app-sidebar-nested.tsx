@@ -14,148 +14,25 @@ import {
 import { type NavItem } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
-  ArrowLeftIcon,
-  BellIcon,
   BookOpen,
   ChevronRightIcon,
-  ClockIcon,
-  CloudIcon,
-  CloudUploadIcon,
-  CodeIcon,
   CogIcon,
-  DatabaseIcon,
-  FlameIcon,
   Folder,
-  HomeIcon,
-  KeyIcon,
-  ListIcon,
   MousePointerClickIcon,
-  PlugIcon,
-  RocketIcon,
   ServerIcon,
-  UserIcon,
-  UsersIcon,
 } from 'lucide-react';
 import AppLogo from './app-logo';
 import { Icon } from '@/components/icon';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Server } from '@/types/server';
-import { Site } from '@/types/site';
 
 export function AppSidebar() {
-  const page = usePage<{
-    server?: Server;
-    site?: Site;
-  }>();
-
-  const isServerMenuDisabled = !page.props.server || page.props.server.status !== 'ready';
+  const page = usePage();
 
   const mainNavItems: NavItem[] = [
     {
       title: 'Servers',
       href: route('servers'),
       icon: ServerIcon,
-      children: [
-        {
-          title: 'Overview',
-          href: route('servers.show', { server: page.props.server?.id || 0 }),
-          onlyActivePath: route('servers.show', { server: page.props.server?.id || 0 }),
-          icon: HomeIcon,
-          isDisabled: isServerMenuDisabled,
-        },
-        {
-          title: 'Database',
-          href: route('databases', { server: page.props.server?.id || 0 }),
-          icon: DatabaseIcon,
-          isDisabled: isServerMenuDisabled,
-          children: [
-            {
-              title: 'Databases',
-              href: route('databases', { server: page.props.server?.id || 0 }),
-              onlyActivePath: route('databases', { server: page.props.server?.id || 0 }),
-              icon: DatabaseIcon,
-            },
-            {
-              title: 'Users',
-              href: route('database-users', { server: page.props.server?.id || 0 }),
-              icon: UsersIcon,
-            },
-            {
-              title: 'Backups',
-              href: route('backups', { server: page.props.server?.id || 0 }),
-              icon: CloudUploadIcon,
-            },
-          ],
-        },
-        {
-          title: 'Sites',
-          href: route('sites', { server: page.props.server?.id || 0 }),
-          icon: MousePointerClickIcon,
-          isDisabled: isServerMenuDisabled,
-          children: page.props.site
-            ? [
-                {
-                  title: 'All sites',
-                  href: route('sites', { server: page.props.server?.id || 0 }),
-                  onlyActivePath: route('sites', { server: page.props.server?.id || 0 }),
-                  icon: ArrowLeftIcon,
-                },
-                {
-                  title: 'Application',
-                  href: route('application', { server: page.props.server?.id || 0, site: page.props.site?.id || 0 }),
-                  icon: RocketIcon,
-                },
-              ]
-            : [],
-        },
-        {
-          title: 'Firewall',
-          href: route('firewall', { server: page.props.server?.id || 0 }),
-          icon: FlameIcon,
-          isDisabled: isServerMenuDisabled,
-        },
-        {
-          title: 'CronJobs',
-          href: route('cronjobs', { server: page.props.server?.id || 0 }),
-          icon: ClockIcon,
-          isDisabled: isServerMenuDisabled,
-        },
-        // {
-        //   title: 'Workers',
-        //   href: '#',
-        //   icon: ListEndIcon,
-        // },
-        // {
-        //   title: 'SSH Keys',
-        //   href: '#',
-        //   icon: KeyIcon,
-        // },
-        // {
-        //   title: 'Services',
-        //   href: '#',
-        //   icon: CogIcon,
-        // },
-        // {
-        //   title: 'Metrics',
-        //   href: '#',
-        //   icon: ChartPieIcon,
-        // },
-        // {
-        //   title: 'Console',
-        //   href: '#',
-        //   icon: TerminalSquareIcon,
-        // },
-        // {
-        //   title: 'Logs',
-        //   href: '#',
-        //   icon: LogsIcon,
-        // },
-        // {
-        //   title: 'Settings',
-        //   href: '#',
-        //   icon: Settings2Icon,
-        // },
-      ],
     },
     {
       title: 'Sites',
@@ -164,55 +41,8 @@ export function AppSidebar() {
     },
     {
       title: 'Settings',
-      href: route('settings'),
+      href: route('profile'),
       icon: CogIcon,
-      children: [
-        {
-          title: 'Profile',
-          href: route('profile'),
-          icon: UserIcon,
-        },
-        {
-          title: 'Users',
-          href: route('users'),
-          icon: UsersIcon,
-        },
-        {
-          title: 'Projects',
-          href: route('projects'),
-          icon: ListIcon,
-        },
-        {
-          title: 'Server Providers',
-          href: route('server-providers'),
-          icon: CloudIcon,
-        },
-        {
-          title: 'Source Controls',
-          href: route('source-controls'),
-          icon: CodeIcon,
-        },
-        {
-          title: 'Storage Providers',
-          href: route('storage-providers'),
-          icon: DatabaseIcon,
-        },
-        {
-          title: 'Notification Channels',
-          href: route('notification-channels'),
-          icon: BellIcon,
-        },
-        {
-          title: 'SSH Keys',
-          href: route('ssh-keys'),
-          icon: KeyIcon,
-        },
-        {
-          title: 'API Keys',
-          href: route('api-keys'),
-          icon: PlugIcon,
-        },
-      ],
     },
   ];
 
