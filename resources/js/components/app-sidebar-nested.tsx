@@ -373,7 +373,7 @@ export function AppSidebar() {
 
   if (isSettingsPage) {
     return (
-      <Sidebar collapsible="offcanvas" variant="sidebar">
+      <Sidebar collapsible="offcanvas" variant="inset">
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -411,7 +411,7 @@ export function AppSidebar() {
     const serverNavItems = getServerNavItems(server.id, site?.id ?? null, server.services, isMenuDisabled);
 
     return (
-      <Sidebar collapsible="offcanvas" variant="sidebar">
+      <Sidebar collapsible="offcanvas" variant="inset">
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -453,7 +453,7 @@ export function AppSidebar() {
   }
 
   return (
-    <Sidebar collapsible="offcanvas" variant="sidebar">
+    <Sidebar collapsible="offcanvas" variant="inset">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>

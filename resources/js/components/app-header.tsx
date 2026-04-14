@@ -14,9 +14,9 @@ export function AppHeader({ socketStatus, socketReconnect }: { socketStatus: Soc
   const page = usePage<SharedData>();
 
   return (
-    <header className="bg-background -ml-1 flex h-12 shrink-0 items-center justify-between gap-2 border-b p-4 md:-ml-2">
+    <header className="bg-background sticky top-0 z-10 flex h-12 shrink-0 items-center justify-between gap-2 border-b p-4">
       <div className="flex items-center">
-        <SidebarTrigger className="-ml-1 md:hidden" />
+        <SidebarTrigger className="-ml-1" />
         <div className="flex items-center space-x-2 text-xs">
           <ProjectSwitch />
           <SlashIcon className="size-3" />
