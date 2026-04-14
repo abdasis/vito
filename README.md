@@ -7,6 +7,10 @@
 
 ------
 
+> **Note**: This is a personal fork of [vitodeploy/vito](https://github.com/vitodeploy/vito), modified for personal use. Changes in this repository may not reflect the official upstream version.
+
+------
+
 ## About Vito
 
 Vito is a self-hosted web application that helps you manage your servers and deploy your PHP applications into
