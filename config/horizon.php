@@ -192,7 +192,7 @@ return [
             'maxProcesses' => env('HORIZON_DEFAULT_MAX_PROCESSES', 1),
             'maxTime' => env('HORIZON_DEFAULT_MAX_TIME', 0),
             'maxJobs' => env('HORIZON_DEFAULT_MAX_JOBS', 0),
-            'memory' => env('HORIZON_DEFAULT_MEMORY', 128),
+            'memory' => env('HORIZON_DEFAULT_MEMORY', 64),
             'tries' => env('HORIZON_DEFAULT_TRIES', 1),
             'timeout' => env('HORIZON_DEFAULT_TIMEOUT', 90),
             'nice' => env('HORIZON_DEFAULT_NICE', 0),
@@ -230,10 +230,10 @@ return [
     'environments' => [
         '*' => [
             'default' => [
-                'maxProcesses' => env('HORIZON_DEFAULT_MAX_PROCESSES', 3),
+                'maxProcesses' => env('HORIZON_DEFAULT_MAX_PROCESSES', 1),
             ],
             'ssh' => [
-                'maxProcesses' => env('HORIZON_SSH_MAX_PROCESSES', 3),
+                'maxProcesses' => env('HORIZON_SSH_MAX_PROCESSES', 1),
             ],
             'ssh-certbot' => [
                 'maxProcesses' => env('HORIZON_SSH_CERTBOT_MAX_PROCESSES', 1),
