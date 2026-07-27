@@ -60,6 +60,8 @@ class RunJob implements ShouldQueue
             $this->file->status = BackupFileStatus::CREATED;
             $this->file->message = null;
             $this->file->save();
+            $this->backup->status = null;
+            $this->backup->save();
             $this->broadcastFileUpdate();
             app(BroadcastBackupUpdate::class)->broadcast($this->backup);
         });
@@ -70,19 +72,32 @@ class RunJob implements ShouldQueue
         $this->file->status = BackupFileStatus::FAILED;
         $this->file->message = Str::limit($e->getMessage(), 1000);
         $this->file->save();
+        $this->backup->status = null;
+        $this->backup->save();
+        $this->cleanupTempFile();
+
+        $server = $this->backup->server;
+        if ($server === null) {
+            return;
+        }
+
         app(BroadcastBackupUpdate::class)->broadcast($this->backup);
         $this->broadcastFileUpdate();
-        ServerLog::log($this->backup->server, 'run-backup-failed', $e->getMessage());
-        $this->cleanupTempFile();
-        Notifier::send($this->backup->server, new BackupFailed($this->backup));
+        ServerLog::log($server, 'run-backup-failed', $e->getMessage());
+        Notifier::send($server, new BackupFailed($this->backup));
     }
 
     private function cleanupTempFile(): void
     {
+        $server = $this->backup->server;
+        if ($server === null) {
+            return;
+        }
+
         try {
-            $this->backup->server->os()->deleteFile($this->file->tempPath());
+            $server->os()->deleteFile($this->file->tempPath());
         } catch (Throwable $e) {
-            ServerLog::log($this->backup->server, 'cleanup-failed-backup', $e->getMessage());
+            ServerLog::log($server, 'cleanup-failed-backup', $e->getMessage());
         }
     }
 

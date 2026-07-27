@@ -51,7 +51,7 @@ class ReconcileBackupsCommand extends Command
             });
 
         Backup::query()
-            ->where('status', BackupStatus::DELETING)
+            ->whereIn('status', [BackupStatus::DELETING, BackupStatus::RUNNING])
             ->where('updated_at', '<', $threshold)
             ->whereHas('server')
             ->with('server')

@@ -4,30 +4,43 @@ namespace App\Actions\Backup;
 
 use App\DTOs\SocketEventDTO;
 use App\Enums\BackupFileStatus;
+use App\Enums\BackupStatus;
 use App\Enums\BackupType;
 use App\Events\SocketEvent;
 use App\Http\Resources\BackupFileResource;
 use App\Jobs\Backup\RunJob;
 use App\Models\Backup;
 use App\Models\BackupFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class RunBackup
 {
     public function run(Backup $backup): BackupFile
     {
-        // Determine the backup name based on type
+        if ($backup->server === null) {
+            throw new RuntimeException('Backup server is missing.');
+        }
+
         $backupName = $backup->type === BackupType::FILE
             ? basename($backup->path)
             : $backup->database?->name;
 
-        $file = new BackupFile([
-            'backup_id' => $backup->id,
-            'name' => Str::of($backupName)->slug().'-'.now()->format('YmdHis'),
-            'status' => BackupFileStatus::CREATING,
-        ]);
-        $file->save();
-        $file->setRelation('backup', $backup);
+        $file = DB::transaction(function () use ($backup, $backupName): BackupFile {
+            $backup->status = BackupStatus::RUNNING;
+            $backup->save();
+
+            $file = new BackupFile([
+                'backup_id' => $backup->id,
+                'name' => Str::of($backupName)->slug().'-'.now()->format('YmdHis'),
+                'status' => BackupFileStatus::CREATING,
+            ]);
+            $file->save();
+            $file->setRelation('backup', $backup);
+
+            return $file;
+        });
 
         SocketEvent::dispatch(new SocketEventDTO(
             projectId: $backup->server->project_id,

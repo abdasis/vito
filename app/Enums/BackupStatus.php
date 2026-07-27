@@ -6,11 +6,15 @@ use App\Contracts\VitoEnum;
 
 enum BackupStatus: string implements VitoEnum
 {
+    case RUNNING = 'running';
     case DELETING = 'deleting';
 
     public function getColor(): string
     {
-        return 'warning';
+        return match ($this) {
+            self::RUNNING => 'info',
+            self::DELETING => 'warning',
+        };
     }
 
     public function getText(): string
