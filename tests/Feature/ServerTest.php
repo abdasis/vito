@@ -2,21 +2,26 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Server\Update;
 use App\Enums\OperatingSystem;
 use App\Enums\ServerStatus;
 use App\Enums\ServiceStatus;
 use App\Enums\UserRole;
+use App\Facades\Notifier;
 use App\Facades\SSH;
 use App\Models\Project;
 use App\Models\Server;
 use App\Models\ServerProvider;
+use App\Models\User;
 use App\NotificationChannels\Email\NotificationMail;
+use App\Notifications\ServerAutoUpdateCompleted;
 use App\ServerProviders\Custom;
 use App\ServerProviders\Hetzner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class ServerTest extends TestCase
@@ -108,6 +113,7 @@ class ServerTest extends TestCase
 
         $this->delete(route('servers.destroy', $this->server), [
             'name' => $this->server->name,
+            'delete_from_provider' => true,
         ])
             ->assertSessionDoesntHaveErrors();
 
@@ -116,6 +122,183 @@ class ServerTest extends TestCase
         ]);
 
         Mail::assertSent(NotificationMail::class);
+    }
+
+    public function test_delete_server_destroys_provider_vm_when_opted_in(): void
+    {
+        Http::fake();
+
+        $this->actingAs($this->user);
+
+        $provider = ServerProvider::factory()->create([
+            'user_id' => $this->user->id,
+            'provider' => Hetzner::id(),
+            'credentials' => [
+                'token' => 'token',
+            ],
+        ]);
+
+        $this->server->update([
+            'provider' => Hetzner::id(),
+            'provider_id' => $provider->id,
+            'provider_data' => [
+                'hetzner_id' => 42,
+                'ssh_key_id' => 1,
+            ],
+        ]);
+
+        $this->delete(route('servers.destroy', $this->server), [
+            'name' => $this->server->name,
+            'delete_from_provider' => true,
+        ])
+            ->assertSessionDoesntHaveErrors();
+
+        $this->assertDatabaseMissing('servers', [
+            'id' => $this->server->id,
+        ]);
+
+        Http::assertSent(fn ($request): bool => $request->method() === 'DELETE'
+            && str_contains($request->url(), '/servers/42'));
+    }
+
+    public function test_delete_server_keeps_provider_vm_when_opted_out(): void
+    {
+        Http::fake();
+
+        $this->actingAs($this->user);
+
+        $provider = ServerProvider::factory()->create([
+            'user_id' => $this->user->id,
+            'provider' => Hetzner::id(),
+            'credentials' => [
+                'token' => 'token',
+            ],
+        ]);
+
+        $this->server->update([
+            'provider' => Hetzner::id(),
+            'provider_id' => $provider->id,
+            'provider_data' => [
+                'hetzner_id' => 42,
+                'ssh_key_id' => 1,
+            ],
+        ]);
+
+        $this->delete(route('servers.destroy', $this->server), [
+            'name' => $this->server->name,
+            'delete_from_provider' => false,
+        ])
+            ->assertSessionDoesntHaveErrors();
+
+        $this->assertDatabaseMissing('servers', [
+            'id' => $this->server->id,
+        ]);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_delete_server_requires_delete_from_provider_for_non_custom(): void
+    {
+        $this->actingAs($this->user);
+
+        $provider = ServerProvider::factory()->create([
+            'user_id' => $this->user->id,
+            'provider' => Hetzner::id(),
+            'credentials' => [
+                'token' => 'token',
+            ],
+        ]);
+
+        $this->server->update([
+            'provider' => Hetzner::id(),
+            'provider_id' => $provider->id,
+            'provider_data' => [
+                'hetzner_id' => 42,
+                'ssh_key_id' => 1,
+            ],
+        ]);
+
+        $this->delete(route('servers.destroy', $this->server), [
+            'name' => $this->server->name,
+        ])
+            ->assertSessionHasErrors('delete_from_provider');
+
+        $this->assertDatabaseHas('servers', [
+            'id' => $this->server->id,
+        ]);
+    }
+
+    public function test_api_delete_server_defaults_to_destroying_provider_vm(): void
+    {
+        Http::fake();
+
+        $provider = ServerProvider::factory()->create([
+            'user_id' => $this->user->id,
+            'provider' => Hetzner::id(),
+            'credentials' => [
+                'token' => 'token',
+            ],
+        ]);
+
+        $this->server->update([
+            'provider' => Hetzner::id(),
+            'provider_id' => $provider->id,
+            'provider_data' => [
+                'hetzner_id' => 99,
+                'ssh_key_id' => 1,
+            ],
+        ]);
+
+        Sanctum::actingAs($this->user, ['read', 'write']);
+
+        $this->deleteJson(route('api.projects.servers.delete', [
+            'project' => $this->server->project_id,
+            'server' => $this->server->id,
+        ]))
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing('servers', [
+            'id' => $this->server->id,
+        ]);
+
+        Http::assertSent(fn ($request): bool => $request->method() === 'DELETE'
+            && str_contains($request->url(), '/servers/99'));
+    }
+
+    public function test_api_delete_server_can_opt_out_of_provider_destruction(): void
+    {
+        Http::fake();
+
+        $provider = ServerProvider::factory()->create([
+            'user_id' => $this->user->id,
+            'provider' => Hetzner::id(),
+            'credentials' => [
+                'token' => 'token',
+            ],
+        ]);
+
+        $this->server->update([
+            'provider' => Hetzner::id(),
+            'provider_id' => $provider->id,
+            'provider_data' => [
+                'hetzner_id' => 99,
+                'ssh_key_id' => 1,
+            ],
+        ]);
+
+        Sanctum::actingAs($this->user, ['read', 'write']);
+
+        $this->deleteJson(route('api.projects.servers.delete', [
+            'project' => $this->server->project_id,
+            'server' => $this->server->id,
+        ]), ['delete_from_provider' => false])
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing('servers', [
+            'id' => $this->server->id,
+        ]);
+
+        Http::assertNothingSent();
     }
 
     public function test_check_connection_is_ready(): void
@@ -237,7 +420,30 @@ class ServerTest extends TestCase
             ->assertSessionDoesntHaveErrors();
 
         $this->server->refresh();
-        $this->assertEquals(9, $this->server->updates);
+        $this->assertEquals(10, $this->server->updates);
+    }
+
+    public function test_check_updates_splits_kernel_updates(): void
+    {
+        SSH::fake("Available updates:5\nKernel updates:2");
+
+        $this->actingAs($this->user);
+
+        $this->post(route('servers.check-for-updates', $this->server))
+            ->assertSessionDoesntHaveErrors();
+
+        $this->server->refresh();
+        $this->assertEquals(5, $this->server->updates);
+        $this->assertEquals(2, $this->server->kernel_updates);
+    }
+
+    public function test_kernel_update_warning_is_exposed(): void
+    {
+        $this->server->update(['kernel_updates' => 1]);
+
+        $warnings = collect($this->server->getWarnings());
+
+        $this->assertTrue($warnings->contains(fn (array $w): bool => $w['key'] === 'kernel_update_available' && $w['count'] === 1));
     }
 
     public function test_update_server(): void
@@ -253,6 +459,73 @@ class ServerTest extends TestCase
 
         $this->assertEquals(ServerStatus::READY, $this->server->status);
         $this->assertEquals(0, $this->server->updates);
+    }
+
+    public function test_os_upgrade_parses_markers(): void
+    {
+        SSH::fake("Packages upgraded:7\nReboot required:1");
+
+        $result = $this->server->os()->upgrade();
+
+        $this->assertSame(7, $result['upgraded']);
+        $this->assertTrue($result['reboot_required']);
+    }
+
+    public function test_auto_update_notifies_when_packages_upgraded(): void
+    {
+        SSH::fake("Packages upgraded:3\nReboot required:1\nAvailable updates:0\nKernel updates:2");
+        Notifier::spy();
+
+        app(Update::class)->update($this->server, notify: true);
+
+        Notifier::shouldHaveReceived('send')->withArgs(
+            function (object $notifiable, object $notification): bool {
+                if (! $notification instanceof ServerAutoUpdateCompleted) {
+                    return false;
+                }
+
+                $text = $notification->rawText();
+
+                return str_contains($text, 'Packages upgraded: 3')
+                    && str_contains($text, 'Kernel updates available: 2')
+                    && str_contains($text, 'rebooted');
+            }
+        )->once();
+    }
+
+    public function test_manual_update_does_not_notify(): void
+    {
+        SSH::fake("Packages upgraded:3\nReboot required:1\nAvailable updates:0\nKernel updates:2");
+        Notifier::spy();
+
+        app(Update::class)->update($this->server);
+
+        Notifier::shouldNotHaveReceived('send');
+    }
+
+    public function test_auto_update_is_silent_when_nothing_changed(): void
+    {
+        SSH::fake("Packages upgraded:0\nReboot required:0\nAvailable updates:0\nKernel updates:0");
+        Notifier::spy();
+
+        app(Update::class)->update($this->server, notify: true);
+
+        Notifier::shouldNotHaveReceived('send');
+    }
+
+    public function test_update_kernel(): void
+    {
+        SSH::fake("Available updates:0\nKernel updates:0");
+
+        $this->actingAs($this->user);
+
+        $this->post(route('servers.update-kernel', $this->server))
+            ->assertSessionDoesntHaveErrors();
+
+        $this->server->refresh();
+
+        $this->assertEquals(ServerStatus::DISCONNECTED, $this->server->status);
+        $this->assertEquals(0, $this->server->kernel_updates);
     }
 
     public function test_only_owner_can_transfer_server(): void
@@ -577,6 +850,10 @@ class ServerTest extends TestCase
         // Test update server
         $this->post(route('servers.update', $this->server))
             ->assertForbidden();
+
+        // Test update kernel
+        $this->post(route('servers.update-kernel', $this->server))
+            ->assertForbidden();
     }
 
     public function test_admin_role_can_manage_server_operations(): void
@@ -594,7 +871,7 @@ class ServerTest extends TestCase
             ->assertSessionDoesntHaveErrors();
 
         // Reset server status for next test
-        $this->server->update(['status' => \App\Enums\ServerStatus::READY]);
+        $this->server->update(['status' => ServerStatus::READY]);
 
         // Test check updates
         $this->post(route('servers.check-for-updates', $this->server))
@@ -621,7 +898,7 @@ class ServerTest extends TestCase
             ->assertSessionDoesntHaveErrors();
 
         // Reset server status for next test
-        $this->server->update(['status' => \App\Enums\ServerStatus::READY]);
+        $this->server->update(['status' => ServerStatus::READY]);
 
         // Test check updates
         $this->post(route('servers.check-for-updates', $this->server))
@@ -638,7 +915,7 @@ class ServerTest extends TestCase
         $this->actingAs($this->user);
 
         // Create a server provider that belongs to a different user
-        $otherUser = \App\Models\User::factory()->create();
+        $otherUser = User::factory()->create();
         $unauthorizedProvider = ServerProvider::factory()->create([
             'user_id' => $otherUser->id,
             'provider' => Hetzner::id(),
@@ -698,7 +975,7 @@ class ServerTest extends TestCase
         $this->actingAs($this->user);
 
         Storage::fake();
-        SSH::fake('1000'); // Simulates vito user exists (returns user ID)
+        SSH::fake('vito_managed_host');
 
         $this->post(route('servers.store'), [
             'provider' => Custom::id(),
@@ -712,6 +989,29 @@ class ServerTest extends TestCase
 
         $this->assertDatabaseMissing('servers', [
             'name' => 'test-vito-server',
+        ]);
+    }
+
+    public function test_can_create_server_when_host_has_unrelated_vito_user(): void
+    {
+        $this->actingAs($this->user);
+
+        Storage::fake();
+        SSH::fake('ok');
+
+        $this->post(route('servers.store'), [
+            'provider' => Custom::id(),
+            'name' => 'unrelated-vito-user',
+            'ip' => '7.7.7.7',
+            'port' => '22',
+            'os' => OperatingSystem::UBUNTU22->value,
+            'services' => [],
+        ])
+            ->assertSessionDoesntHaveErrors();
+
+        $this->assertDatabaseHas('servers', [
+            'name' => 'unrelated-vito-user',
+            'ip' => '7.7.7.7',
         ]);
     }
 }

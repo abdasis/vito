@@ -2,6 +2,8 @@
 
 namespace App\SiteTypes;
 
+use App\Models\Deployment;
+
 interface SiteType
 {
     public static function id(): string;
@@ -34,6 +36,8 @@ interface SiteType
 
     public function install(): void;
 
+    public function assertReadyToDeploy(): void;
+
     /**
      * @return array<array<string, string>>
      */
@@ -50,4 +54,13 @@ interface SiteType
     public function supportedWebservers(): ?array;
 
     public function vhostTemplate(string $webserver): ?string;
+
+    /**
+     * @return array<string, string>
+     */
+    public function deploymentEnvironment(): array;
+
+    public function afterDeploy(Deployment $deployment): void;
+
+    public function defaultDeploymentScript(): string;
 }

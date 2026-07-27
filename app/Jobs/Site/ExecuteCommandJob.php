@@ -23,7 +23,9 @@ class ExecuteCommandJob implements ShouldQueue
         protected CommandExecution $execution,
         protected Command $command,
         protected ServerLog $log,
-    ) {}
+    ) {
+        $this->onQueue('ssh');
+    }
 
     public function handle(): void
     {
@@ -36,7 +38,11 @@ class ExecuteCommandJob implements ShouldQueue
                 script: $content,
                 serverLog: $this->log,
                 user: $this->command->site->user,
-                variables: $this->execution->variables,
+                variables: array_merge(
+                    $this->command->site->environmentVariables(),
+                    $this->command->site->type()->deploymentEnvironment(),
+                    $this->execution->variables,
+                ),
                 aliases: $this->command->site->environmentAliases(),
             );
             $this->execution->status = CommandExecutionStatus::COMPLETED;

@@ -53,9 +53,6 @@ class SSH
         $this->log = null;
         $this->asUser = null;
         $this->variables = [];
-        $this->logDisk = null;
-        $this->logPath = null;
-        $this->logOutputCallback = null;
         $this->server = $server->refresh();
         $this->user = $server->getSshUser();
         if ($asUser && $asUser !== $server->getSshUser()) {
@@ -101,7 +98,7 @@ class SSH
     /**
      * Write a chunk of output to either a file on a disk or the server log.
      */
-    private function writeOutput(string $chunk): void
+    protected function writeOutput(string $chunk): void
     {
         if ($this->logDisk && $this->logPath) {
             Storage::disk($this->logDisk)->append($this->logPath, $chunk);
@@ -128,6 +125,15 @@ class SSH
         $this->logDisk = $disk;
         $this->logPath = $path;
         $this->logOutputCallback = $outputCallback;
+
+        return $this;
+    }
+
+    public function clearLog(): self
+    {
+        $this->logDisk = null;
+        $this->logPath = null;
+        $this->logOutputCallback = null;
 
         return $this;
     }
@@ -182,7 +188,7 @@ class SSH
     /**
      * @throws SSHError
      */
-    public function exec(string|View $command, string $log = '', ?int $siteId = null, ?bool $stream = false, ?callable $streamCallback = null): string
+    public function exec(string|View $command, string $log = '', ?int $siteId = null, ?bool $stream = false, ?callable $streamCallback = null, int $timeout = 0): string
     {
         $this->ensureLog($log, $siteId);
 
@@ -204,12 +210,13 @@ class SSH
             if ($this->asUser !== null && $this->asUser !== '' && $this->asUser !== '0') {
                 $command = <<<BASH
                 sudo -u {$this->asUser} bash <<'EOF'
+                cd ~ || { echo 'VITO_SSH_ERROR: failed to cd to home directory' >&2; exit 1; }
                 {$command}
                 EOF
                 BASH;
             }
 
-            $this->connection->setTimeout(0);
+            $this->connection->setTimeout($timeout);
             if ($stream === true) {
                 /** @var callable $streamCallback */
                 $this->connection->exec($command, function ($output) use ($streamCallback) {
@@ -292,7 +299,7 @@ class SSH
             $storageDisk->put($tmpName, $content);
             $tmpRemotePath = '/tmp/'.$tmpName;
             $this->upload($storageDisk->path($tmpName), $tmpRemotePath, $owner, $log, $siteId);
-            $this->asUser($owner)->exec('cat '.$tmpRemotePath.' > '.$remotePath);
+            $this->asUser($owner)->exec('cat '.$tmpRemotePath.' > '.$remotePath.' && rm -f '.$tmpRemotePath);
         } catch (Throwable $e) {
             throw new SSHCommandError(
                 message: $e->getMessage()

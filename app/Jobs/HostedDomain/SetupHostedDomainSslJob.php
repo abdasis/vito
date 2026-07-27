@@ -3,6 +3,7 @@
 namespace App\Jobs\HostedDomain;
 
 use App\Actions\HostedDomain\ActivateHostedDomain;
+use App\Actions\Site\BroadcastSiteUpdate;
 use App\Actions\SSL\CertificateParser;
 use App\DTOs\SocketEventDTO;
 use App\Enums\HostedDomainStatus;
@@ -16,6 +17,7 @@ use App\Models\ServerLog;
 use App\Models\Service;
 use App\Models\Site;
 use App\Models\Ssl;
+use App\Models\UserProject;
 use App\Services\Webserver\Webserver;
 use App\Traits\UniqueQueue;
 use Exception;
@@ -86,6 +88,8 @@ class SetupHostedDomainSslJob implements ShouldQueue
             $webserver->setupSSL($ssl);
 
             $this->readAndVerifyCertificate($site, $ssl, $leDomains);
+
+            app(BroadcastSiteUpdate::class)->broadcast($site);
         });
     }
 
@@ -135,6 +139,8 @@ class SetupHostedDomainSslJob implements ShouldQueue
             $e->getMessage(),
             $site
         );
+
+        app(BroadcastSiteUpdate::class)->broadcast($site);
     }
 
     private function readAndVerifyCertificate(Site $site, Ssl $ssl, array $leDomains): void
@@ -208,7 +214,7 @@ class SetupHostedDomainSslJob implements ShouldQueue
             return $existingSsl->email;
         }
 
-        /** @var \App\Models\UserProject|null $userProject */
+        /** @var UserProject|null $userProject */
         $userProject = $site->server->project->users()->with('user')->first();
         if ($userProject?->user?->email) {
             return $userProject->user->email;

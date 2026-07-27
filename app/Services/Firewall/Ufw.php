@@ -2,10 +2,12 @@
 
 namespace App\Services\Firewall;
 
+use App\DTOs\ServiceLog;
 use App\Enums\FirewallRuleStatus;
 use App\Exceptions\SSHError;
+use App\Services\HasLogs;
 
-class Ufw extends AbstractFirewall
+class Ufw extends AbstractFirewall implements HasLogs
 {
     public static function id(): string
     {
@@ -32,7 +34,9 @@ class Ufw extends AbstractFirewall
         $this->service->server->ssh()
             ->setLog($this->service->log)
             ->exec(
-                view('ssh.services.firewall.ufw.install-ufw'),
+                view('ssh.services.firewall.ufw.install-ufw', [
+                    'sshPort' => $this->service->server->port ?? 22,
+                ]),
                 'install-ufw'
             );
         event('service.installed', $this->service);
@@ -67,5 +71,18 @@ class Ufw extends AbstractFirewall
         );
 
         return trim($version);
+    }
+
+    public function logs(): array
+    {
+        return [
+            new ServiceLog(
+                key: 'ufw:general',
+                serviceLabel: 'UFW',
+                label: 'General log',
+                source: ServiceLog::SOURCE_FILE,
+                target: '/var/log/ufw.log',
+            ),
+        ];
     }
 }

@@ -6,13 +6,14 @@ use App\Actions\Site\CreateSite;
 use App\Actions\Site\Deploy;
 use App\Actions\Site\DisableSsl;
 use App\Actions\Site\EnableSsl;
+use App\Actions\Site\GetEnv;
+use App\Actions\Site\RetrySite;
 use App\Actions\Site\UpdateDeploymentScript;
 use App\Actions\Site\UpdateEnv;
 use App\Actions\Site\UpdateLoadBalancer;
 use App\Actions\Site\UpdateVhostGeneration;
 use App\Actions\Site\UpdateWebDirectory;
 use App\Exceptions\DeploymentScriptIsEmptyException;
-use App\Helpers\EnvParser;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\DeploymentResource;
 use App\Http\Resources\SiteResource;
@@ -22,6 +23,7 @@ use App\Models\Site;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\ResourceCollection;
+use Illuminate\Http\Response;
 use Spatie\RouteAttributes\Attributes\Delete;
 use Spatie\RouteAttributes\Attributes\Get;
 use Spatie\RouteAttributes\Attributes\Middleware;
@@ -66,7 +68,7 @@ class SiteController extends Controller
     }
 
     #[Delete('{site}', name: 'api.projects.servers.sites.delete', middleware: 'ability:write')]
-    public function delete(Project $project, Server $server, Site $site): \Illuminate\Http\Response
+    public function delete(Project $project, Server $server, Site $site): Response
     {
         $this->authorize('delete', [$site, $server]);
 
@@ -118,13 +120,18 @@ class SiteController extends Controller
     }
 
     #[Put('{site}/deployment-script', name: 'api.projects.servers.sites.deployment-script', middleware: 'ability:write')]
-    public function updateDeploymentScript(Request $request, Project $project, Server $server, Site $site): \Illuminate\Http\Response
+    public function updateDeploymentScript(Request $request, Project $project, Server $server, Site $site): Response
     {
         $this->authorize('update', [$site, $server]);
 
         $this->validateRoute($project, $server, $site);
 
-        app(UpdateDeploymentScript::class)->update($site->deploymentScript, $request->all());
+        $site->ensureDeploymentScriptsExist();
+
+        $script = $site->activeDeploymentScript();
+        abort_if($script === null, 404);
+
+        app(UpdateDeploymentScript::class)->update($script, $request->all());
 
         return response()->noContent();
     }
@@ -137,7 +144,7 @@ class SiteController extends Controller
         $this->validateRoute($project, $server, $site);
 
         return response()->json([
-            'script' => $site->deploymentScript?->content,
+            'script' => $site->activeDeploymentScript()?->content,
         ]);
     }
 
@@ -148,19 +155,8 @@ class SiteController extends Controller
 
         $this->validateRoute($project, $server, $site);
 
-        $env = $site->getEnv();
-
-        if ($site->env_variables !== null) {
-            $variables = EnvParser::maskSecrets($site->env_variables);
-        } else {
-            $variables = EnvParser::parse($env);
-        }
-
         return response()->json([
-            'data' => [
-                'env' => $env,
-                'variables' => $variables,
-            ],
+            'data' => app(GetEnv::class)->get($site),
         ]);
     }
 
@@ -172,6 +168,18 @@ class SiteController extends Controller
         $this->validateRoute($project, $server, $site);
 
         app(UpdateEnv::class)->update($site, $request->all());
+
+        return new SiteResource($site);
+    }
+
+    #[Post('{site}/retry', name: 'api.projects.servers.sites.retry', middleware: 'ability:write')]
+    public function retry(Project $project, Server $server, Site $site): SiteResource
+    {
+        $this->authorize('update', [$site, $server]);
+
+        $this->validateRoute($project, $server, $site);
+
+        app(RetrySite::class)->retry($site);
 
         return new SiteResource($site);
     }

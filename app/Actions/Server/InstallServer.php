@@ -10,10 +10,10 @@ use App\Exceptions\SSHConnectionError;
 use App\Exceptions\SSHError;
 use App\Facades\Notifier;
 use App\Http\Resources\ServerResource;
+use App\Jobs\ServerIp\RefreshServerIpsJob;
 use App\Models\Server;
 use App\Notifications\ServerInstallationSucceed;
 use App\ServerProviders\Custom;
-use App\Services\PHP\PHP;
 use Illuminate\Support\Sleep;
 
 class InstallServer
@@ -45,6 +45,7 @@ class InstallServer
         $this->server->update([
             'status' => ServerStatus::READY,
         ]);
+        dispatch(new RefreshServerIpsJob($this->server))->onQueue('ssh');
         Notifier::send($this->server, new ServerInstallationSucceed($this->server));
     }
 
@@ -53,6 +54,8 @@ class InstallServer
      */
     public function install(): void
     {
+        $this->progress(5, 'preparing-system');
+        $this->server->os()->waitForBoot();
         $this->createUser();
         $this->progress(15, 'installing-updates');
         $this->server->os()->upgrade();
@@ -69,12 +72,6 @@ class InstallServer
 
             $service->handler()->install();
             $service->update(['status' => ServiceStatus::READY]);
-            if ($service->type == 'php') {
-                $this->progress($currentProgress, 'installing-composer');
-                /** @var PHP $handler */
-                $handler = $service->handler();
-                $handler->installComposer();
-            }
         }
         $this->progress(100, 'finishing');
     }

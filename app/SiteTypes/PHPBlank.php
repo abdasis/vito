@@ -23,19 +23,16 @@ class PHPBlank extends PHPSite
 
     public function createRules(array $input): array
     {
-        return [
-            'web_directory' => [
-                'nullable',
-                'string',
-                'max:255',
-                'regex:/^[a-zA-Z0-9._\-\/]+$/',
-                'not_regex:/\.\./',
-            ],
-            'php_version' => [
-                'required',
-                Rule::in($this->site->server->installedPHPVersions()),
-            ],
+        $rules = parent::createRules($input);
+
+        unset($rules['source_control'], $rules['repository'], $rules['branch'], $rules['composer']);
+
+        $rules['php_version'] = [
+            'required',
+            Rule::in($this->site->server->installedPHPVersions()),
         ];
+
+        return $rules;
     }
 
     public function createFields(array $input): array
@@ -48,7 +45,10 @@ class PHPBlank extends PHPSite
 
     public function data(array $input): array
     {
-        return [];
+        $data = parent::data($input);
+        unset($data['composer']);
+
+        return $data;
     }
 
     /**
@@ -56,12 +56,15 @@ class PHPBlank extends PHPSite
      */
     public function install(): void
     {
+        $this->progress(0, 'isolating-user');
         $this->isolate();
-        $this->progress(20);
+        $this->progress(15, 'installing-tooling');
+        $this->setupRequestedTooling();
+        $this->progress(25, 'creating-vhost');
         $this->site->webserver()->createVHost($this->site);
-        $this->progress(55);
+        $this->progress(55, 'restarting-php');
         $this->site->php()?->restart();
-        $this->progress(90);
+        $this->progress(90, 'finishing');
     }
 
     public function baseCommands(): array

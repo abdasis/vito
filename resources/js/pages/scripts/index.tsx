@@ -1,28 +1,25 @@
 import { Head, usePage } from '@inertiajs/react';
-import { Server } from '@/types/server';
-import Container from '@/components/container';
+import { PaginatedData } from '@/types';
+import Layout from '@/layouts/app/layout';
 import HeaderContainer from '@/components/header-container';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { BookOpenIcon, PlusIcon } from 'lucide-react';
+import Container from '@/components/container';
 import { DataTable } from '@/components/data-table';
-import { columns } from '@/pages/scripts/components/columns';
-import { PaginatedData } from '@/types';
 import { Script } from '@/types/script';
-import { Site } from '@/types/site';
-import Layout from '@/layouts/app/layout';
-import ScriptForm from '@/pages/scripts/components/form';
+import { columns } from '@/pages/scripts/components/columns';
+import { useDialog } from '@/hooks/use-dialog';
 
 export default function Scripts() {
   const page = usePage<{
-    server: Server;
-    site: Site;
     scripts: PaginatedData<Script>;
   }>();
+  const dialog = useDialog();
 
   return (
     <Layout>
-      <Head title={`Scripts`} />
+      <Head title="Scripts" />
 
       <Container className="max-w-5xl">
         <HeaderContainer>
@@ -34,12 +31,10 @@ export default function Scripts() {
                 <span className="hidden lg:block">Docs</span>
               </Button>
             </a>
-            <ScriptForm>
-              <Button>
-                <PlusIcon />
-                <span className="hidden lg:block">Create</span>
-              </Button>
-            </ScriptForm>
+            <Button onClick={() => dialog.scriptForm.open({})}>
+              <PlusIcon />
+              <span className="hidden lg:block">Create</span>
+            </Button>
           </div>
         </HeaderContainer>
 

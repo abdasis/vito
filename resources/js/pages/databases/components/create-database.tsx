@@ -1,4 +1,4 @@
-import { FormEvent, ReactNode, useEffect, useState } from 'react';
+import { FormEvent, ReactNode, useRef, useState } from 'react';
 import {
   Dialog,
   DialogClose,
@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import InputError from '@/components/ui/input-error';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import axios from 'axios';
 import { Checkbox } from '@/components/ui/checkbox';
 import DatabaseUserSelect from '@/pages/database-users/components/database-user-select';
@@ -47,12 +48,8 @@ export default function CreateDatabase({
   const [open, setOpen] = useState(false);
   const [charsets, setCharsets] = useState<string[]>([]);
   const [collations, setCollations] = useState<string[]>([]);
-
-  const fetchCharsets = async () => {
-    axios.get(route('databases.charsets', server)).then((response) => {
-      setCharsets(response.data);
-    });
-  };
+  const fetchedServer = useRef<number | null>(null);
+  const latestCollationRequest = useRef(0);
 
   const form = useForm<CreateForm>({
     name: '',
@@ -62,14 +59,44 @@ export default function CreateDatabase({
     existing_user_id: '',
   });
 
-  // Auto-load collations when modal opens with a default charset
-  useEffect(() => {
-    if (open && form.data.charset && charsets.includes(form.data.charset) && collations.length === 0) {
-      axios.get(route('databases.collations', { server: server, charset: form.data.charset })).then((response) => {
-        setCollations(response.data);
-      });
+  const resolveCollation = (list: string[], defaultCollation: string | null, current: string): string => {
+    if (current && list.includes(current)) {
+      return current;
     }
-  }, [open, charsets, form.data.charset, server, collations]);
+    if (defaultCollation && list.includes(defaultCollation)) {
+      return defaultCollation;
+    }
+    return list[0] ?? '';
+  };
+
+  const fetchCollations = async (charset: string, current: string): Promise<void> => {
+    const requestId = ++latestCollationRequest.current;
+    try {
+      const response = await axios.get(route('databases.collations', { server: server, charset }));
+      if (requestId !== latestCollationRequest.current) {
+        return;
+      }
+      setCollations(response.data.list);
+      form.setData('collation', resolveCollation(response.data.list, response.data.default, current));
+    } catch {
+      if (requestId !== latestCollationRequest.current) {
+        return;
+      }
+      setCollations([]);
+      form.setData('collation', '');
+    }
+  };
+
+  const fetchCharsets = async () => {
+    setCollations([]);
+    const response = await axios.get(route('databases.charsets', server));
+    fetchedServer.current = server;
+    setCharsets(response.data);
+
+    if (form.data.charset && response.data.includes(form.data.charset)) {
+      await fetchCollations(form.data.charset, form.data.collation);
+    }
+  };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -89,17 +116,14 @@ export default function CreateDatabase({
 
   const handleOpenChange = (open: boolean) => {
     setOpen(open);
-    if (open && charsets.length === 0) {
+    if (open && fetchedServer.current !== server) {
       fetchCharsets();
     }
   };
 
   const handleCharsetChange = (value: string) => {
-    form.setData('collation', '');
     form.setData('charset', value);
-    axios.get(route('databases.collations', { server: server, charset: value })).then((response) => {
-      setCollations(response.data);
-    });
+    void fetchCollations(value, '');
   };
 
   return (
@@ -149,18 +173,15 @@ export default function CreateDatabase({
                 </FormField>
                 <FormField>
                   <Label htmlFor="collation">Collation</Label>
-                  <Select onValueChange={(value) => form.setData('collation', value)} value={form.data.collation}>
-                    <SelectTrigger id="collation">
-                      <SelectValue placeholder="Select collation" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {collations.map((collation) => (
-                        <SelectItem key={collation} value={collation}>
-                          {collation}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    id="collation"
+                    items={collations.map((collation) => ({ value: collation, label: collation }))}
+                    value={form.data.collation}
+                    onValueChange={(value) => form.setData('collation', value)}
+                    placeholder="Select collation"
+                    searchText="Search collations..."
+                    noneFoundText="No collations found."
+                  />
                   <InputError message={form.errors.collation} />
                 </FormField>
                 <FormField>
@@ -192,7 +213,7 @@ export default function CreateDatabase({
                 Cancel
               </Button>
             </DialogClose>
-            <Button type="button" onClick={submit} disabled={form.processing}>
+            <Button form="create-database-form" type="submit" disabled={form.processing}>
               {form.processing && <LoaderCircle className="animate-spin" />}
               Create
             </Button>

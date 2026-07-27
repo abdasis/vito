@@ -3,23 +3,26 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Site\Deploy;
+use App\Actions\Site\GetEnv;
 use App\Actions\Site\Rollback;
 use App\Actions\Site\UpdateDeploymentScript;
 use App\Actions\Site\UpdateEnv;
 use App\Actions\Site\UpdateLoadBalancer;
 use App\Exceptions\DeploymentScriptIsEmptyException;
 use App\Exceptions\FailedToDestroyGitHook;
+use App\Exceptions\ReverseProxyNotConfiguredException;
 use App\Exceptions\SourceControlIsNotConnected;
 use App\Exceptions\SSHError;
 use App\Helpers\EnvParser;
-use App\Http\Resources\DeploymentResource;
 use App\Http\Resources\DeploymentScriptResource;
 use App\Http\Resources\LoadBalancerServerResource;
-use App\Http\Resources\ServerLogResource;
+use App\Http\Resources\WorkerResource;
 use App\Models\Deployment;
 use App\Models\DeploymentScript;
 use App\Models\Server;
 use App\Models\Site;
+use App\SiteTypes\AbstractProxiedSiteType;
+use App\Tables\DeploymentTable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -47,13 +50,16 @@ class ApplicationController extends Controller
         $buildScript = $site->buildScript;
         $preFlightScript = $site->preFlightScript;
 
+        $type = $site->type();
+        $bootstrapWorker = $type instanceof AbstractProxiedSiteType ? $type->bootstrapWorker() : null;
+
         return Inertia::render('application/index', [
-            'logs' => ServerLogResource::collection($site->logs()->latest()->simplePaginate(config('web.pagination_size'))),
-            'deployments' => DeploymentResource::collection($site->deployments()->latest()->simplePaginate(config('web.pagination_size'))),
+            'deployments' => DeploymentTable::make($site->deployments())->paginate(),
             'deploymentScript' => new DeploymentScriptResource($deploymentScript),
             'buildScript' => $buildScript ? new DeploymentScriptResource($buildScript) : null,
             'preFlightScript' => $preFlightScript ? new DeploymentScriptResource($preFlightScript) : null,
             'loadBalancerServers' => LoadBalancerServerResource::collection($site->loadBalancerServers),
+            'worker' => $bootstrapWorker ? new WorkerResource($bootstrapWorker) : null,
         ]);
     }
 
@@ -69,6 +75,7 @@ class ApplicationController extends Controller
 
     /**
      * @throws DeploymentScriptIsEmptyException
+     * @throws ReverseProxyNotConfiguredException
      */
     #[Post('/deploy', name: 'application.deploy')]
     public function deploy(Server $server, Site $site): RedirectResponse
@@ -117,18 +124,7 @@ class ApplicationController extends Controller
             $site->jsonUpdate('type_data', 'env_path', $request->input('env'), false);
         }
 
-        $env = $site->getEnv();
-
-        if ($site->env_variables !== null) {
-            $variables = EnvParser::maskSecrets($site->env_variables);
-        } else {
-            $variables = EnvParser::parse($env);
-        }
-
-        return response()->json([
-            'env' => $env,
-            'variables' => $variables,
-        ]);
+        return response()->json(app(GetEnv::class)->get($site));
     }
 
     #[Post('/env/parse', name: 'application.parse-env')]

@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Server\CreateServer;
+use App\Actions\Server\DeleteServer;
 use App\Actions\Server\GetServers;
 use App\Actions\Server\RebootServer;
 use App\Actions\Server\TransferServer;
 use App\Actions\Server\Update;
+use App\Actions\Server\UpdateKernel;
 use App\Exceptions\SSHError;
 use App\Http\Resources\ServerLogResource;
 use App\Http\Resources\ServerProviderResource;
@@ -17,7 +19,6 @@ use App\Tables\ServerTable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\ResourceCollection;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\RouteAttributes\Attributes\Delete;
@@ -122,7 +123,15 @@ class ServerController extends Controller
 
         $server->checkForUpdates();
 
-        return back()->with('info', 'Available updates: '.$server->refresh()->updates);
+        $server->refresh();
+
+        $message = "Available updates: {$server->updates}";
+
+        if ($server->kernel_updates > 0) {
+            $message .= " (plus {$server->kernel_updates} kernel)";
+        }
+
+        return back()->with('info', $message);
     }
 
     #[Post('/{server}/update', name: 'servers.update')]
@@ -133,6 +142,16 @@ class ServerController extends Controller
         app(Update::class)->update($server);
 
         return back()->with('info', 'Server is being updated. This may take a while.');
+    }
+
+    #[Post('/{server}/update-kernel', name: 'servers.update-kernel')]
+    public function updateKernel(Server $server): RedirectResponse
+    {
+        $this->authorize('update', $server);
+
+        app(UpdateKernel::class)->updateKernel($server);
+
+        return back()->with('info', 'Kernel is being updated and the server will restart.');
     }
 
     #[Post('/{server}/transfer', name: 'servers.transfer')]
@@ -153,14 +172,7 @@ class ServerController extends Controller
     {
         $this->authorize('delete', $server);
 
-        $this->validate($request, [
-            'name' => [
-                'required',
-                Rule::in([$server->name]),
-            ],
-        ]);
-
-        $server->delete();
+        app(DeleteServer::class)->delete($server, $request->all());
 
         return redirect()->route('servers')
             ->with('success', __('Server deleted successfully.'));

@@ -40,7 +40,7 @@ class GetCharsetsTest extends TestCase
     ];
 
     /**
-     * @param  array<string, string|array<string>>  $expected
+     * @param  array<string, array{default: string|null, list: array<int, string>}>  $expected
      */
     #[DataProvider('data')]
     public function test_update_charsets(string $name, string $version, string $output, array $expected): void
@@ -108,6 +108,35 @@ class GetCharsetsTest extends TestCase
                 static::$mysqlCharsets,
             ],
             [
+                'mariadb',
+                '11.4',
+                <<<'EOD'
+                Collation	Charset	Id	Default	Compiled	Sortlen
+                big5_chinese_ci	big5	1	Yes	Yes	1
+                big5_bin	big5	84		Yes	1
+                utf8mb4_general_ci	utf8mb4	45		Yes	1
+                utf8mb4_bin	utf8mb4	46		Yes	1
+                uca1400_ai_ci	NULL	NULL	NULL	Yes	8
+                uca1400_ai_cs	NULL	NULL	NULL	Yes	8
+                EOD,
+                [
+                    'big5' => [
+                        'default' => 'big5_chinese_ci',
+                        'list' => [
+                            'big5_chinese_ci',
+                            'big5_bin',
+                        ],
+                    ],
+                    'utf8mb4' => [
+                        'default' => null,
+                        'list' => [
+                            'utf8mb4_general_ci',
+                            'utf8mb4_bin',
+                        ],
+                    ],
+                ],
+            ],
+            [
                 'postgresql',
                 '16',
                 <<<'EOD'
@@ -127,6 +156,36 @@ class GetCharsetsTest extends TestCase
                             'C.utf8',
                             'en_US.utf8',
                             'en_US',
+                        ],
+                    ],
+                ],
+            ],
+            [
+                'postgresql',
+                '18',
+                <<<'EOD'
+                 collation   | charset | id | default | compiled | sortlen | pad_attribute
+                -------------+---------+----+---------+----------+---------+---------------
+                 C           | UTF8    |    |         | Yes      |         |
+                 POSIX       | UTF8    |    |         | Yes      |         |
+                 ucs_basic   | UTF8    |    |         | Yes      |         |
+                 pg_c_utf8   | UTF8    |    |         | Yes      |         |
+                 unicode     | UTF8    |    |         | Yes      |         |
+                 en-US-x-icu | UTF8    |    |         | Yes      |         |
+                 en_US.utf8  | UTF8    |    |         | Yes      |         |
+                (7 rows)
+                EOD,
+                [
+                    'UTF8' => [
+                        'default' => null,
+                        'list' => [
+                            'C',
+                            'POSIX',
+                            'ucs_basic',
+                            'pg_c_utf8',
+                            'unicode',
+                            'en-US-x-icu',
+                            'en_US.utf8',
                         ],
                     ],
                 ],

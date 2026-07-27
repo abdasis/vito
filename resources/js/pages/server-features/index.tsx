@@ -9,7 +9,7 @@ import { MoreVerticalIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardRow, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import FeatureAction from '@/pages/server-features/components/feature-action';
+import { useDialog } from '@/hooks/use-dialog';
 
 export default function ServerFeatures() {
   const page = usePage<{
@@ -18,6 +18,7 @@ export default function ServerFeatures() {
       [key: string]: ServerFeature;
     };
   }>();
+  const dialog = useDialog();
 
   return (
     <ServerLayout>
@@ -28,14 +29,14 @@ export default function ServerFeatures() {
           <Heading title="Features" description="Your server has some features enabled by Vito or other plugins" />
         </HeaderContainer>
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader className="flex-row items-center justify-between gap-2">
             <div className="space-y-2">
               <CardTitle>Server features</CardTitle>
               <CardDescription>Here you can see the list of features and their actions</CardDescription>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="bg-background">
             {Object.entries(page.props.features).length > 0 ? (
               Object.entries(page.props.features).map(([key, feature], index) => (
                 <div key={`feature-${key}`}>
@@ -53,11 +54,15 @@ export default function ServerFeatures() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         {Object.entries(feature.actions || {}).map(([actionKey, action]) => (
-                          <FeatureAction key={`action-${actionKey}`} server={page.props.server} featureId={key} actionId={actionKey} action={action}>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled={!action.active}>
-                              {action.label}
-                            </DropdownMenuItem>
-                          </FeatureAction>
+                          <DropdownMenuItem
+                            key={`action-${actionKey}`}
+                            disabled={!action.active}
+                            onSelect={() =>
+                              dialog.serverFeatureAction.open({ server: page.props.server, featureId: key, actionId: actionKey, action })
+                            }
+                          >
+                            {action.label}
+                          </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
                     </DropdownMenu>

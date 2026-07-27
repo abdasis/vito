@@ -2,13 +2,14 @@
 
 namespace App\Jobs\SSL;
 
-use App\Actions\SSL\CertificateParser;
+use App\Actions\SSL\CheckSslExpiry;
 use App\Enums\SslStatus;
 use App\Enums\SslType;
 use App\Models\Server;
 use App\Models\Ssl;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class CheckSslExpiryJob implements ShouldQueue
@@ -20,6 +21,7 @@ class CheckSslExpiryJob implements ShouldQueue
     public function handle(): void
     {
         $ssls = Ssl::query()
+            ->with('site.server')
             ->whereHas('site', fn ($q) => $q->where('server_id', $this->server->id))
             ->whereNotNull('site_id')
             ->where('type', SslType::LETSENCRYPT)
@@ -32,32 +34,17 @@ class CheckSslExpiryJob implements ShouldQueue
         }
 
         $ssh = $this->server->ssh();
+        $action = app(CheckSslExpiry::class);
 
         foreach ($ssls as $ssl) {
-            $this->checkCertificate($ssh, $ssl);
-        }
-    }
-
-    private function checkCertificate(mixed $ssh, Ssl $ssl): void
-    {
-        try {
-            $certificate = trim($ssh->exec("sudo cat {$ssl->certificate_path}"));
-
-            if (empty($certificate) || ! str_contains($certificate, 'BEGIN CERTIFICATE')) {
-                return;
+            try {
+                $action->check($ssl, notify: true, ssh: $ssh);
+            } catch (Throwable $e) {
+                Log::warning('[SSL expiry check] Failed to check certificate', [
+                    'ssl_id' => $ssl->id,
+                    'error' => $e->getMessage(),
+                ]);
             }
-
-            $parsed = CertificateParser::parse($certificate);
-
-            if ($ssl->expires_at?->equalTo($parsed['expires_at'])) {
-                return;
-            }
-
-            $ssl->expires_at = $parsed['expires_at'];
-            $ssl->domains = $parsed['domains'];
-            $ssl->save();
-        } catch (Throwable) {
-            return;
         }
     }
 }

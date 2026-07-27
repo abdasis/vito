@@ -1,41 +1,116 @@
 import { Link, router } from '@inertiajs/react';
-import { ChevronDownIcon, TriangleAlertIcon } from 'lucide-react';
+import { OctagonAlertIcon } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { humanizeStep } from '@/lib/utils';
 import { Site, SiteWarning } from '@/types/site';
-import { ReactNode, useState } from 'react';
+import { useState } from 'react';
+import { BannerItem, WarningsBlock } from '@/components/banners';
 
-type PendingDomainsWarning = { key: 'pending_domains'; count: number; domains: string[] };
-type SslExpiringWarning = { key: 'ssl_expiring'; count: number; domains: string[]; earliest_expiry: string };
+function InstallationFailedBanner({ site }: { site: Site }) {
+  const [open, setOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-interface BannerItem {
-  key: string;
-  title: string;
-  description: ReactNode;
-  action?: ReactNode;
-}
+  const step = humanizeStep(site.progress_step);
 
-function BannerRow({ item }: { item: BannerItem }) {
   return (
-    <div className="flex items-center gap-4 px-4 py-3">
-      <TriangleAlertIcon className="text-warning h-4 w-4 shrink-0" />
-      <div className="min-w-0 flex-1 text-sm">
-        <p className="font-medium">{item.title}</p>
-        <p className="text-muted-foreground mt-0.5">{item.description}</p>
+    <div className="border-destructive/40 bg-destructive/5 flex flex-col gap-4 rounded-lg border p-5">
+      <div className="flex items-start gap-3">
+        <div className="bg-destructive/10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full">
+          <OctagonAlertIcon className="text-destructive h-4 w-4" />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <p className="text-sm leading-tight font-medium">Site installation failed{step ? ` while ${step.toLowerCase()}` : ''}</p>
+          <p className="text-muted-foreground text-sm">You can retry the installation; steps that have already completed will be skipped.</p>
+        </div>
       </div>
-      {item.action && <div className="shrink-0">{item.action}</div>}
+
+      {site.last_error && (
+        <pre className="text-muted-foreground bg-muted/40 ml-11 max-h-40 overflow-auto rounded-md p-3 font-mono text-xs whitespace-pre-wrap">
+          {site.last_error}
+        </pre>
+      )}
+
+      <div className="ml-11">
+        <Dialog
+          open={open}
+          onOpenChange={(next) => {
+            setOpen(next);
+            if (!next) setSubmitError(null);
+          }}
+        >
+          <DialogTrigger asChild>
+            <Button variant="destructive" size="sm">
+              Retry installation
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Retry site installation?</DialogTitle>
+              <DialogDescription>
+                This will re-run the installation for <strong>{site.domain}</strong>. Steps that already completed (isolated user, vhost, cloned
+                repository, deployed key) will be detected and skipped.
+              </DialogDescription>
+            </DialogHeader>
+            {submitError && <p className="text-destructive text-sm">{submitError}</p>}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpen(false)} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={submitting}
+                onClick={() => {
+                  setSubmitting(true);
+                  setSubmitError(null);
+                  setOpen(false);
+                  router.post(
+                    route('sites.retry', { server: site.server_id, site: site.id }),
+                    {},
+                    {
+                      preserveScroll: true,
+                      onError: (errors) => {
+                        const first = errors && typeof errors === 'object' ? Object.values(errors)[0] : null;
+                        const message =
+                          typeof first === 'string'
+                            ? first
+                            : Array.isArray(first) && typeof first[0] === 'string'
+                              ? first[0]
+                              : 'Could not retry installation. Check the site logs.';
+                        setSubmitError(message);
+                        setOpen(true);
+                      },
+                      onFinish: () => {
+                        setSubmitting(false);
+                      },
+                    },
+                  );
+                }}
+              >
+                {submitting ? 'Retrying...' : 'Retry installation'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 }
 
 export default function SiteBanners({ site }: { site: Site }) {
-  const warnings: SiteWarning[] = site.warnings ?? [];
-  const [open, setOpen] = useState(false);
+  const installing = site.status === 'installing';
+  const installationFailed = site.status === 'installation_failed';
+  const warnings: SiteWarning[] = installing ? [] : (site.warnings ?? []);
 
   const pendingDomainsWarning = warnings.find((w) => w.key === 'pending_domains');
   const sslDisabledWarning = warnings.find((w) => w.key === 'ssl_disabled');
   const vhostWarning = warnings.find((w) => w.key === 'vhost_generation_disabled');
+  const phpSettingsIgnoredWarning = warnings.find((w) => w.key === 'php_settings_ignored');
   const sslExpiringWarning = warnings.find((w) => w.key === 'ssl_expiring');
+  const needsFirstDeployWarning = warnings.find((w) => w.key === 'needs_first_deploy');
+  const workerWarnings = warnings.filter((w): w is Extract<SiteWarning, { key: 'worker_not_running' }> => w.key === 'worker_not_running');
 
   const items: BannerItem[] = [];
 
@@ -59,7 +134,7 @@ export default function SiteBanners({ site }: { site: Site }) {
   }
 
   if (pendingDomainsWarning && pendingDomainsWarning.key === 'pending_domains') {
-    const pw = pendingDomainsWarning as PendingDomainsWarning;
+    const pw = pendingDomainsWarning;
     items.push({
       key: 'pending-domains',
       title: `${pw.count} pending ${pw.count === 1 ? 'domain' : 'domains'}`,
@@ -80,7 +155,7 @@ export default function SiteBanners({ site }: { site: Site }) {
   }
 
   if (sslExpiringWarning && sslExpiringWarning.key === 'ssl_expiring') {
-    const sw = sslExpiringWarning as SslExpiringWarning;
+    const sw = sslExpiringWarning;
     const daysLeft = Math.max(0, Math.ceil((new Date(sw.earliest_expiry).getTime() - Date.now()) / 86400000));
     items.push({
       key: 'ssl-expiring',
@@ -133,37 +208,84 @@ export default function SiteBanners({ site }: { site: Site }) {
     });
   }
 
-  if (items.length === 0) {
+  if (phpSettingsIgnoredWarning) {
+    items.push({
+      key: 'php-settings-ignored',
+      title: 'PHP settings are not applied',
+      description: (
+        <>
+          This site has custom PHP settings, but a custom VHost template is in use so they are not written to the server. Add the directives to your
+          template manually, or reset the template to apply them automatically.
+        </>
+      ),
+      action: (
+        <Link href={route('site-settings', { server: site.server_id, site: site.id })}>
+          <Button variant="outline" size="sm">
+            Go to Settings
+          </Button>
+        </Link>
+      ),
+    });
+  }
+
+  if (needsFirstDeployWarning) {
+    items.push({
+      key: 'needs-first-deploy',
+      title: 'Site needs first deploy',
+      description: (
+        <>
+          Customise your deploy script if needed, then deploy this site to bring it online. The application worker is created on the first successful
+          deploy.
+        </>
+      ),
+      action: (
+        <Link href={route('application', { server: site.server_id, site: site.id })}>
+          <Button variant="outline" size="sm">
+            Go to Application
+          </Button>
+        </Link>
+      ),
+    });
+  }
+
+  for (const workerWarning of workerWarnings) {
+    const workerLabel = workerWarning.name ?? `#${workerWarning.worker_id}`;
+    items.push({
+      key: `worker-not-running-${workerWarning.worker_id}`,
+      title: `Worker "${workerLabel}" needs attention`,
+      description: (
+        <>
+          <span className="inline-flex flex-wrap items-center gap-1.5">
+            <Badge variant={workerWarning.status_color} className="text-xs">
+              {workerWarning.status}
+            </Badge>
+            Restart the worker to bring it back online.
+          </span>
+          {workerWarning.error && (
+            <pre className="text-muted-foreground bg-muted/40 mt-2 max-h-40 overflow-auto rounded-md p-3 font-mono text-xs whitespace-pre-wrap">
+              {workerWarning.error}
+            </pre>
+          )}
+        </>
+      ),
+      action: (
+        <Link href={route('workers.site', { server: site.server_id, site: site.id })}>
+          <Button variant="outline" size="sm">
+            Manage Workers
+          </Button>
+        </Link>
+      ),
+    });
+  }
+
+  if (!installationFailed && items.length === 0) {
     return null;
   }
 
-  if (items.length === 1) {
-    return (
-      <div className="border-warning/40 bg-warning/5 rounded-lg border">
-        <BannerRow item={items[0]} />
-      </div>
-    );
-  }
-
   return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="border-warning/40 bg-warning/5 rounded-lg border">
-        <CollapsibleTrigger className="flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left">
-          <TriangleAlertIcon className="text-warning h-4 w-4 shrink-0" />
-          <span className="flex-1 text-sm font-medium">{items.length} warnings require your attention</span>
-          <ChevronDownIcon className={`text-muted-foreground h-4 w-4 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
-        </CollapsibleTrigger>
-
-        <CollapsibleContent>
-          <div className="border-warning/25 space-y-0 border-t">
-            {items.map((item, i) => (
-              <div key={item.key} className={i > 0 ? 'border-warning/25 border-t' : ''}>
-                <BannerRow item={item} />
-              </div>
-            ))}
-          </div>
-        </CollapsibleContent>
-      </div>
-    </Collapsible>
+    <div className="flex flex-col gap-3">
+      {installationFailed && <InstallationFailedBanner site={site} />}
+      <WarningsBlock items={items} />
+    </div>
   );
 }

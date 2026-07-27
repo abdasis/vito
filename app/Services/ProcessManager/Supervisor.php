@@ -2,10 +2,14 @@
 
 namespace App\Services\ProcessManager;
 
+use App\DTOs\ServiceLog;
+use App\Enums\WorkerStatus;
 use App\Exceptions\SSHError;
+use App\Models\Worker;
+use App\Services\HasLogs;
 use Throwable;
 
-class Supervisor extends AbstractProcessManager
+class Supervisor extends AbstractProcessManager implements HasLogs
 {
     public static function id(): string
     {
@@ -51,46 +55,57 @@ class Supervisor extends AbstractProcessManager
     }
 
     /**
-     * @param  ?array<string, string>  $environment
-     *
+     * @param  array<string, string>  $environment
+     */
+    public static function formatEnvironment(array $environment): string
+    {
+        return collect($environment)
+            ->filter(fn (string $value, string $key): bool => preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $key) === 1)
+            ->map(function (string $value, string $key): string {
+                $sanitized = str_replace(["\r", "\n", '"'], '', $value);
+
+                return $key.'="'.str_replace('%', '%%', $sanitized).'"';
+            })
+            ->implode(',');
+    }
+
+    /**
      * @throws SSHError
      */
-    public function create(
-        int $id,
-        string $command,
-        string $user,
-        bool $autoStart,
-        bool $autoRestart,
-        int $numprocs,
-        string $logFile,
-        ?string $directory = null,
-        ?int $siteId = null,
-        ?array $environment = null,
-    ): void {
+    public function writeConfig(Worker $worker): void
+    {
         $this->service->server->ssh()->write(
-            "/etc/supervisor/conf.d/$id.conf",
+            "/etc/supervisor/conf.d/{$worker->id}.conf",
             view('ssh.services.process-manager.supervisor.worker', [
-                'name' => (string) $id,
-                'directory' => $directory,
-                'command' => $command,
-                'user' => $user,
-                'autoStart' => var_export($autoStart, true),
-                'autoRestart' => var_export($autoRestart, true),
-                'numprocs' => (string) $numprocs,
-                'logFile' => $logFile,
-                'environment' => $environment,
+                'name' => (string) $worker->id,
+                'directory' => $worker->site?->path,
+                'command' => $worker->command,
+                'user' => $worker->user,
+                'autoStart' => var_export($worker->auto_start, true),
+                'autoRestart' => var_export($worker->auto_restart, true),
+                'numprocs' => (string) $worker->numprocs,
+                'logFile' => $worker->getLogFile(),
+                'environment' => self::formatEnvironment($worker->effectiveEnvironment()),
             ]),
             'root'
         );
+    }
+
+    /**
+     * @throws SSHError
+     */
+    public function create(Worker $worker): void
+    {
+        $this->writeConfig($worker);
 
         $this->service->server->ssh()->exec(
             view('ssh.services.process-manager.supervisor.create-worker', [
-                'id' => $id,
-                'logFile' => $logFile,
-                'user' => $user,
+                'id' => $worker->id,
+                'logFile' => $worker->getLogFile(),
+                'user' => $worker->user,
             ]),
             'create-worker',
-            $siteId
+            $worker->site_id
         );
     }
 
@@ -150,33 +165,86 @@ class Supervisor extends AbstractProcessManager
         );
     }
 
-    public function restartAll(?int $siteId = null): void
+    /**
+     * @param  non-empty-array<int>  $ids
+     *
+     * @throws Throwable
+     */
+    public function restartMany(array $ids, ?int $siteId = null): string
     {
-        $this->service->server->ssh()->exec(
-            view('ssh.services.process-manager.supervisor.restart-all-workers'),
-            'restart-all-workers',
+        /** @phpstan-ignore identical.alwaysFalse (defensive guard despite non-empty-array contract) */
+        if ($ids === []) {
+            return '';
+        }
+
+        return $this->service->server->ssh()->exec(
+            view('ssh.services.process-manager.supervisor.restart-workers', [
+                'ids' => $ids,
+            ]),
+            'restart-workers',
             $siteId
         );
     }
 
     /**
-     * @param  array<int>  $workerIds
-     *
      * @throws Throwable
      */
-    public function restartByIds(array $workerIds, ?int $siteId = null): void
+    public function restartAll(?int $siteId = null): void
     {
-        if (empty($workerIds)) {
+        if ($siteId !== null) {
+            $ids = $this->service->server->workers()
+                ->where('site_id', $siteId)
+                ->whereNotIn('status', [WorkerStatus::CREATING, WorkerStatus::DELETING])
+                ->pluck('id')
+                ->all();
+
+            if ($ids !== []) {
+                $this->restartMany($ids, $siteId);
+            }
+
             return;
         }
 
         $this->service->server->ssh()->exec(
-            view('ssh.services.process-manager.supervisor.restart-workers', [
-                'workerIds' => $workerIds,
-            ]),
-            'restart-workers',
-            $siteId
+            view('ssh.services.process-manager.supervisor.restart-all-workers'),
+            'restart-all-workers'
         );
+    }
+
+    /**
+     * @return array<int, array<string, array{state: string, description: string}>>
+     *
+     * @throws Throwable
+     */
+    public function statuses(): array
+    {
+        $output = $this->service->server->ssh()->exec(
+            view('ssh.services.process-manager.supervisor.worker-statuses'),
+            'worker-statuses'
+        );
+
+        $statuses = [];
+
+        foreach (explode("\n", $output) as $line) {
+            $parts = preg_split('/\s+/', trim($line), 3) ?: [];
+
+            if (count($parts) < 2) {
+                continue;
+            }
+
+            $group = explode(':', $parts[0], 2)[0];
+
+            if (! ctype_digit($group)) {
+                continue;
+            }
+
+            $statuses[(int) $group][$parts[0]] = [
+                'state' => strtoupper($parts[1]),
+                'description' => $parts[2] ?? '',
+            ];
+        }
+
+        return $statuses;
     }
 
     /**
@@ -196,5 +264,18 @@ class Supervisor extends AbstractProcessManager
         );
 
         return trim($version);
+    }
+
+    public function logs(): array
+    {
+        return [
+            new ServiceLog(
+                key: 'supervisor:general',
+                serviceLabel: 'Supervisor',
+                label: 'General log',
+                source: ServiceLog::SOURCE_FILE,
+                target: '/var/log/supervisor/supervisord.log',
+            ),
+        ];
     }
 }

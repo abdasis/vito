@@ -29,6 +29,7 @@ import {
   DatabaseIcon,
   FlameIcon,
   Folder,
+  Globe,
   KeyIcon,
   ListIcon,
   MousePointerClickIcon,
@@ -37,6 +38,8 @@ import {
   ServerIcon,
   UserIcon,
   UsersIcon,
+  WorkflowIcon,
+  ZapIcon,
 } from "lucide-react"
 import { Link, router, usePage } from "@inertiajs/react"
 import { SharedData, NavItem } from "@/types"
@@ -93,8 +96,28 @@ export const AppSidebar = ({ ...props }: React.ComponentProps<typeof Sidebar>) =
       icon: MousePointerClickIcon,
     },
     {
-      title: "Settings",
-      href: route("settings"),
+      title: 'Backups',
+      href: route('backups.all'),
+      icon: CloudUploadIcon,
+    },
+    {
+      title: 'Scripts',
+      href: route('scripts'),
+      icon: ZapIcon,
+    },
+    {
+      title: 'Workflows',
+      href: route('workflows'),
+      icon: WorkflowIcon,
+    },
+    {
+      title: 'Domains',
+      href: route('domains'),
+      icon: Globe,
+    },
+    {
+      title: 'Settings',
+      href: route('settings'),
       icon: CogIcon,
       children: [
         { title: "Profile", href: route("profile"), icon: UserIcon },

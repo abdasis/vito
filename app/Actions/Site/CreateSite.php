@@ -8,10 +8,13 @@ use App\Enums\SiteStatus;
 use App\Exceptions\RepositoryNotFound;
 use App\Exceptions\RepositoryPermissionDenied;
 use App\Exceptions\SourceControlIsNotConnected;
-use App\Jobs\HostedDomain\CheckDomainJob;
 use App\Jobs\Site\CreateJob;
+use App\Models\IsolatedUser;
 use App\Models\Server;
+use App\Models\Service;
 use App\Models\Site;
+use App\Services\Webserver\Webserver;
+use App\Tooling\ToolingRegistry;
 use App\ValidationRules\DomainRule;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +25,8 @@ use Throwable;
 
 class CreateSite
 {
+    private const ISOLATED_USER_PATTERN = '/^[a-z_][a-z0-9_-]*[a-z0-9]$/';
+
     /**
      * @param  array<string, mixed>  $input
      *
@@ -29,13 +34,23 @@ class CreateSite
      */
     public function create(Server $server, array $input): Site
     {
+        $input = $this->lockRuntimeVersionsToExistingUser($server, $input);
+
         $this->validate($server, $input);
 
         DB::beginTransaction();
         try {
             $user = $input['user'];
+
+            $isolatedUser = $user !== $server->getSshUser()
+                ? IsolatedUser::query()->firstOrCreate(
+                    ['server_id' => $server->id, 'username' => $user],
+                )
+                : null;
+
             $site = new Site([
                 'server_id' => $server->id,
+                'isolated_user_id' => $isolatedUser?->id,
                 'type' => $input['type'],
                 'domain' => $input['domain'],
                 'user' => $user,
@@ -54,9 +69,9 @@ class CreateSite
             // fields based on the type
             $site->fill($site->type()->createFields($input));
 
-            /** @var \App\Models\Service $webserver */
+            /** @var Service $webserver */
             $webserver = $server->webserver();
-            /** @var \App\Services\Webserver\Webserver $webserverHandler */
+            /** @var Webserver $webserverHandler */
             $webserverHandler = $webserver->handler();
             $site->fill($webserverHandler->siteDefaults());
 
@@ -87,16 +102,15 @@ class CreateSite
 
             $defaultSslMethod = $webserverHandler->defaultSslMethod();
 
-            $primaryDomain = $site->hostedDomains()->create([
+            $site->hostedDomains()->create([
                 'domain' => $site->domain,
                 'type' => HostedDomainType::PRIMARY,
                 'status' => HostedDomainStatus::CREATING,
                 'ssl_method' => $defaultSslMethod,
             ]);
 
-            $aliasDomains = [];
             foreach ($input['aliases'] ?? [] as $alias) {
-                $aliasDomains[] = $site->hostedDomains()->create([
+                $site->hostedDomains()->create([
                     'domain' => $alias,
                     'type' => HostedDomainType::ALIAS,
                     'status' => HostedDomainStatus::CREATING,
@@ -109,13 +123,7 @@ class CreateSite
 
             DB::commit();
 
-            // install site
-            dispatch(new CreateJob($site))->onQueue('ssh');
-
-            dispatch(new CheckDomainJob($primaryDomain))->onQueue('ssh');
-            foreach ($aliasDomains as $aliasDomain) {
-                dispatch(new CheckDomainJob($aliasDomain))->onQueue('ssh');
-            }
+            dispatch(new CreateJob($site));
 
             return $site;
         } catch (Exception $e) {
@@ -143,11 +151,13 @@ class CreateSite
             ],
             'user' => [
                 'required',
-                'regex:/^[a-z_][a-z0-9_-]*[a-z0-9]$/',
+                'regex:'.self::ISOLATED_USER_PATTERN,
                 'min:3',
                 'max:32',
-                Rule::unique('sites', 'user')->where('server_id', $server->id),
-                Rule::notIn($server->getSshUsers()),
+                Rule::notIn(array_unique(array_merge(
+                    config('core.reserved_user_names'),
+                    [$server->getSshUser()]
+                ))),
             ],
         ];
 
@@ -170,5 +180,49 @@ class CreateSite
         );
 
         return $site->type()->createRules($input);
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    private function lockRuntimeVersionsToExistingUser(Server $server, array $input): array
+    {
+        $user = isset($input['user']) && is_string($input['user']) ? $input['user'] : '';
+
+        if ($user === '' || preg_match(self::ISOLATED_USER_PATTERN, $user) !== 1) {
+            return $input;
+        }
+
+        $iuser = IsolatedUser::query()
+            ->where('server_id', $server->id)
+            ->where('username', $user)
+            ->first();
+
+        if (! $iuser instanceof IsolatedUser) {
+            return $input;
+        }
+
+        foreach (ToolingRegistry::all() as $id => $tool) {
+            $allowed = $tool::supportedVersionsWithNone();
+            $existing = $iuser->toolingVersion($id);
+
+            if ($existing === null || ! in_array($existing, $allowed, true) || $existing === 'none') {
+                continue;
+            }
+
+            $field = $tool::typeDataKey();
+            $submitted = $input[$field] ?? null;
+
+            if (is_string($submitted) && $submitted !== '' && $submitted !== $existing) {
+                throw ValidationException::withMessages([
+                    $field => "Isolated user '{$user}' already has {$tool::label()} {$existing} installed; this cannot be changed.",
+                ]);
+            }
+
+            $input[$field] = $existing;
+        }
+
+        return $input;
     }
 }

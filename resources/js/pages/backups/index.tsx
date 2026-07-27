@@ -5,26 +5,29 @@ import HeaderContainer from '@/components/header-container';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import ServerLayout from '@/layouts/server/layout';
+import Layout from '@/layouts/app/layout';
 import { BookOpenIcon, PlusIcon } from 'lucide-react';
 import { Backup } from '@/types/backup';
-import { DataTable } from '@/components/data-table';
-import { columns } from '@/pages/backups/components/columns';
-import CreateBackup from '@/pages/backups/components/create-backup';
-import { PaginatedData } from '@/types';
-import { useRealtime } from '@/hooks/use-socket-events';
+import { VitoTable } from '@/components/vito-table';
+import BackupActions from '@/pages/backups/components/backup-actions';
+import { useDialog } from '@/hooks/use-dialog';
+import { asRow } from '@/lib/inertia-table';
+import type { InertiaTableData, Row } from '@forjedio/inertia-table-react';
 
 type Page = {
-  server: Server;
-  backups: PaginatedData<Backup>;
+  server?: Server;
+  backups: InertiaTableData;
 };
 
 export default function Backups() {
   const page = usePage<Page>();
-  const [backups] = useRealtime<Backup>(page.props.backups, 'backup');
+  const dialog = useDialog();
+
+  const Comp = page.props.server ? ServerLayout : Layout;
 
   return (
-    <ServerLayout>
-      <Head title={`Backups - ${page.props.server.name}`} />
+    <Comp>
+      <Head title={`Backups${page.props.server ? ' - ' + page.props.server.name : ''}`} />
 
       <Container className="max-w-5xl">
         <HeaderContainer>
@@ -36,17 +39,15 @@ export default function Backups() {
                 <span className="hidden lg:block">Docs</span>
               </Button>
             </a>
-            <CreateBackup server={page.props.server}>
-              <Button>
-                <PlusIcon />
-                <span className="hidden lg:block">Create</span>
-              </Button>
-            </CreateBackup>
+            <Button onClick={() => dialog.backupCreate.open({ server: page.props.server })}>
+              <PlusIcon />
+              <span className="hidden lg:block">Create</span>
+            </Button>
           </div>
         </HeaderContainer>
 
-        <DataTable columns={columns} paginatedData={backups} />
+        <VitoTable tableData={page.props.backups} actions={(row: Row) => <BackupActions backup={asRow<{ resource: Backup }>(row, ['resource']).resource} />} />
       </Container>
-    </ServerLayout>
+    </Comp>
   );
 }

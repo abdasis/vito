@@ -2,6 +2,8 @@
 
 namespace App\Jobs\Site;
 
+use App\Actions\Site\BroadcastSiteUpdate;
+use App\Actions\Worker\RestartSiteWorkers;
 use App\DTOs\SocketEventDTO;
 use App\Enums\DeploymentStatus;
 use App\Events\SocketEvent;
@@ -10,7 +12,6 @@ use App\Http\Resources\DeploymentResource;
 use App\Models\Deployment;
 use App\Models\ServerLog;
 use App\Notifications\DeploymentCompleted;
-use App\Services\ProcessManager\ProcessManager;
 use App\SSH\OS\Git;
 use App\Traits\UniqueQueue;
 use Exception;
@@ -25,7 +26,9 @@ class DeployJob implements ShouldQueue
     public function __construct(
         protected Deployment $deployment,
         protected bool $isModern = true
-    ) {}
+    ) {
+        $this->onQueue('ssh');
+    }
 
     public function handle(): void
     {
@@ -39,10 +42,13 @@ class DeployJob implements ShouldQueue
                 $this->handleClassicDeployment($site, $log);
             }
 
+            $site->type()->afterDeploy($this->deployment);
+
             $this->deployment->status = DeploymentStatus::FINISHED;
             $this->deployment->save();
             $this->deployment->activate();
             $this->broadcastDeploymentUpdate();
+            app(BroadcastSiteUpdate::class)->broadcast($site);
             Notifier::send($site, new DeploymentCompleted($this->deployment, $site));
         });
     }
@@ -90,15 +96,15 @@ class DeployJob implements ShouldQueue
             script: $site->deploymentScript->content,
             serverLog: $log,
             user: $site->user,
-            variables: $site->environmentVariables($this->deployment),
+            variables: array_merge(
+                $site->environmentVariables($this->deployment),
+                $site->type()->deploymentEnvironment(),
+            ),
             aliases: $site->environmentAliases(),
         );
 
-        if ($site->deploymentScript->shouldRestartWorkers()) {
-            /** @var ProcessManager $processManager */
-            $processManager = $site->server->processManager()->handler();
-            $workerIds = $site->workers()->pluck('id')->toArray();
-            $processManager->restartByIds($workerIds, $site->id);
+        if ($site->deploymentScriptFor(false)?->shouldRestartWorkers()) {
+            app(RestartSiteWorkers::class)->restart($site, $log);
         }
     }
 
@@ -112,19 +118,24 @@ class DeployJob implements ShouldQueue
             script: $site->buildScript->content ?? '',
             serverLog: $log,
             user: $site->user,
-            variables: $site->environmentVariables($this->deployment),
+            variables: array_merge(
+                $site->environmentVariables($this->deployment),
+                $site->type()->deploymentEnvironment(),
+            ),
             aliases: $site->environmentAliases(),
         );
 
         // link resources
-        $site->server->ssh($site->user)->exec(
-            view('ssh.modern-deployment.link-resources', [
-                'site' => $site,
-                'releasePath' => $this->deployment->path(),
-            ]),
-            'link-resources',
-            $site->id
-        );
+        $site->server->ssh($site->user)
+            ->variables($site->environmentVariables($this->deployment))
+            ->exec(
+                view('ssh.modern-deployment.link-resources', [
+                    'site' => $site,
+                    'releasePath' => $this->deployment->path(),
+                ]),
+                'link-resources',
+                $site->id
+            );
 
         // pre-flight
         $site->server->os()->runScript(
@@ -132,7 +143,10 @@ class DeployJob implements ShouldQueue
             script: $site->preFlightScript->content ?? '',
             serverLog: $log,
             user: $site->user,
-            variables: $site->environmentVariables($this->deployment),
+            variables: array_merge(
+                $site->environmentVariables($this->deployment),
+                $site->type()->deploymentEnvironment(),
+            ),
             aliases: $site->environmentAliases(),
         );
 
@@ -146,11 +160,8 @@ class DeployJob implements ShouldQueue
             $site->id
         );
 
-        if ($site->preFlightScript?->shouldRestartWorkers()) {
-            /** @var ProcessManager $processManager */
-            $processManager = $site->server->processManager()->handler();
-            $workerIds = $site->workers()->pluck('id')->toArray();
-            $processManager->restartByIds($workerIds, $site->id);
+        if ($site->deploymentScriptFor(true)?->shouldRestartWorkers()) {
+            app(RestartSiteWorkers::class)->restart($site, $log);
         }
     }
 }

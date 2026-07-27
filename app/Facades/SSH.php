@@ -14,8 +14,9 @@ use Illuminate\Support\Facades\Facade as FacadeAlias;
  * @method static \App\Helpers\SSH|SSHFake init(Server $server, string $asUser = null)
  * @method static setLog(?ServerLog $log)
  * @method static \App\Helpers\SSH useLog(string $disk, string $path, ?\Closure $outputCallback = null)
+ * @method static \App\Helpers\SSH clearLog()
  * @method static connect()
- * @method static string exec(string|View $command, string $log = '', int $siteId = null, ?bool $stream = false, callable $streamCallback = null)
+ * @method static string exec(string|View $command, string $log = '', int $siteId = null, ?bool $stream = false, callable $streamCallback = null, int $timeout = 0)
  * @method static string upload(string $local, string $remote, ?string $owner = null)
  * @method static string download(string $local, string $remote)
  * @method static string write(string $path, string $content, string $owner = null)
@@ -24,6 +25,7 @@ use Illuminate\Support\Facades\Facade as FacadeAlias;
  * @method static string assertNotExecutedContains(string $command, string $message = '')
  * @method static string assertFileUploaded(string $toPath, ?string $content = null)
  * @method static string getUploadedLocalPath()
+ * @method static string getUploadedContent()
  * @method static disconnect()
  */
 class SSH extends FacadeAlias

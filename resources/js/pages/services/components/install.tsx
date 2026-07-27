@@ -1,7 +1,6 @@
 import React, { FormEvent, ReactNode, useState } from 'react';
 import { useForm, usePage } from '@inertiajs/react';
 import { Server } from '@/types/server';
-import { SharedData } from '@/types';
 import {
   Dialog,
   DialogClose,
@@ -20,13 +19,11 @@ import { CheckIcon, ChevronsUpDownIcon, LoaderCircleIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
+import { useConfigs } from '@/stores/bootstrap-store';
 
 export default function InstallService({ name, children }: { name?: string; children: ReactNode }) {
-  const page = usePage<
-    {
-      server: Server;
-    } & SharedData
-  >();
+  const page = usePage<{ server: Server }>();
+  const configs = useConfigs()!;
 
   const [open, setOpen] = useState(false);
   const [nameOpen, setNameOpen] = useState(false);
@@ -68,16 +65,16 @@ export default function InstallService({ name, children }: { name?: string; chil
                 <Popover open={nameOpen} onOpenChange={setNameOpen}>
                   <PopoverTrigger asChild>
                     <Button id="name" variant="outline" role="combobox" aria-expanded={nameOpen} className="w-full justify-between font-normal">
-                      {form.data.name ? page.props.configs.service.services[form.data.name]?.label || form.data.name : 'Select a service'}
+                      {form.data.name ? configs.service.services[form.data.name]?.label || form.data.name : 'Select a service'}
                       <ChevronsUpDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
                     <Command>
                       <CommandInput placeholder="Search service..." />
                       <CommandList>
                         <CommandGroup>
-                          {Object.entries(page.props.configs.service.services).map(([key, service]) => (
+                          {Object.entries(configs.service.services).map(([key, service]) => (
                             <CommandItem
                               key={`service-${key}`}
                               value={service.label}
@@ -117,13 +114,13 @@ export default function InstallService({ name, children }: { name?: string; chil
                     <ChevronsUpDownIcon className="ml-2 size-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
                   <Command>
                     <CommandInput placeholder="Search version..." />
                     <CommandList>
                       <CommandGroup>
                         {form.data.name &&
-                          page.props.configs.service.services[form.data.name].versions.map((version) => (
+                          configs.service.services[form.data.name].versions.map((version) => (
                             <CommandItem
                               key={`version-${form.data.name}-${version}`}
                               value={version}

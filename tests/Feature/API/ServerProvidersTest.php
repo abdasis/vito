@@ -91,8 +91,10 @@ class ServerProvidersTest extends TestCase
     }
 
     #[DataProvider('data')]
-    public function test_delete_provider(string $provider): void
+    public function test_delete_provider(string $provider, array $input): void
     {
+        unset($input);
+
         Sanctum::actingAs($this->user, ['read', 'write']);
 
         /** @var ServerProvider $provider */
@@ -109,8 +111,10 @@ class ServerProvidersTest extends TestCase
     }
 
     #[DataProvider('data')]
-    public function test_cannot_delete_provider(string $provider): void
+    public function test_cannot_delete_provider(string $provider, array $input): void
     {
+        unset($input);
+
         Sanctum::actingAs($this->user, ['read', 'write']);
 
         /** @var ServerProvider $provider */
@@ -378,6 +382,52 @@ class ServerProvidersTest extends TestCase
                     'available',
                 ],
             ]);
+    }
+
+    public function test_hetzner_plans_endpoint_returns_flat_available_only(): void
+    {
+        Sanctum::actingAs($this->user, ['read', 'write']);
+
+        Http::fake([
+            '*' => Http::response([
+                'server_types' => [
+                    [
+                        'name' => 'ccx13', 'cores' => 2, 'memory' => 8, 'disk' => 80,
+                        'prices' => [['location' => 'fsn1', 'price_monthly' => ['net' => '18.4900000000']]],
+                        'locations' => [
+                            ['name' => 'fsn1', 'available' => true, 'deprecation' => null],
+                        ],
+                    ],
+                    [
+                        'name' => 'cax11', 'cores' => 2, 'memory' => 4, 'disk' => 40,
+                        'prices' => [['location' => 'fsn1', 'price_monthly' => ['net' => '5.4900000000']]],
+                        'locations' => [
+                            ['name' => 'fsn1', 'available' => false, 'deprecation' => null],
+                        ],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        /** @var ServerProvider $serverProvider */
+        $serverProvider = ServerProvider::factory()->create([
+            'user_id' => $this->user->id,
+            'project_id' => $this->user->current_project_id,
+            'provider' => Hetzner::id(),
+            'credentials' => ['token' => 'token'],
+        ]);
+
+        $plans = $this->json('GET', route('api.projects.server-providers.plans', [
+            'project' => $this->user->current_project_id,
+            'serverProvider' => $serverProvider->id,
+            'region' => 'fsn1',
+        ]))
+            ->assertSuccessful()
+            ->json();
+
+        $this->assertArrayHasKey('ccx13', $plans);
+        $this->assertArrayNotHasKey('cax11', $plans);
+        $this->assertIsString($plans['ccx13']);
     }
 
     public function test_cannot_access_regions_without_authentication(): void

@@ -36,6 +36,13 @@ class WorkerPolicy
             $server->processManager();
     }
 
+    public function manage(User $user, Server $server, ?Site $site = null): bool
+    {
+        return $this->hasWriteAccess($user, $server->project) &&
+            $server->isReady() &&
+            $server->processManager();
+    }
+
     public function update(User $user, Worker $worker, Server $server, ?Site $site = null): bool
     {
         return $this->hasWriteAccess($user, $server->project) &&
@@ -49,6 +56,7 @@ class WorkerPolicy
         return $this->hasWriteAccess($user, $server->project) &&
             $server->isReady() &&
             $worker->server_id === $server->id &&
-            $server->processManager();
+            $server->processManager() &&
+            ! $worker->isSiteBootstrap();
     }
 }

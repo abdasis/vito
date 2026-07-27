@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\ServiceStatus;
 use App\Facades\SSH;
 use App\Models\Server;
+use App\Models\Service;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
@@ -357,7 +358,7 @@ class ServicesTest extends TestCase
 
         $this->actingAs($this->user);
 
-        /** @var \App\Models\Service $service */
+        /** @var Service $service */
         $service = $this->server->services()->where('name', 'php')->firstOrFail();
 
         $this->get(route('services.version', [
@@ -427,6 +428,11 @@ class ServicesTest extends TestCase
                 'latest',
             ],
             [
+                'goaccess',
+                'log_analysis',
+                'latest',
+            ],
+            [
                 'redis',
                 'memory_database',
                 'latest',
@@ -439,12 +445,12 @@ class ServicesTest extends TestCase
             [
                 'mysql',
                 'database',
-                '8.0',
+                '8.4',
             ],
             [
                 'mariadb',
                 'database',
-                '10.4',
+                '10.11',
             ],
             [
                 'postgresql',

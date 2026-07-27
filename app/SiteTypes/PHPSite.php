@@ -5,8 +5,12 @@ namespace App\SiteTypes;
 use App\Exceptions\FailedToDeployGitKey;
 use App\Exceptions\SSHError;
 use App\Models\Site;
+use App\Models\SourceControl;
 use App\SSH\OS\Composer;
-use App\SSH\OS\Git;
+use App\Tooling\NodeTooling;
+use App\Tooling\PnpmTooling;
+use App\Tooling\ToolingRegistry;
+use App\Tooling\YarnTooling;
 use App\Traits\NormalizesWebDirectory;
 use Illuminate\Validation\Rule;
 
@@ -37,17 +41,29 @@ class PHPSite extends AbstractSiteType
         return new self(new Site(['type' => self::id()]));
     }
 
+    public static function createTimeTools(): array
+    {
+        return ['node', 'pnpm', 'yarn', 'composer'];
+    }
+
+    public static function requiredTooling(): array
+    {
+        return ['composer'];
+    }
+
+    public static function supportsTooling(): bool
+    {
+        return true;
+    }
+
     public function createRules(array $input): array
     {
-        return [
+        $rules = [
             'php_version' => [
                 'required',
                 Rule::in($this->site->server->installedPHPVersions()),
             ],
-            'source_control' => [
-                'required',
-                Rule::exists('source_controls', 'id'),
-            ],
+            'source_control' => SourceControl::siteValidationRules($this->site->server),
             'web_directory' => [
                 'nullable',
                 'string',
@@ -65,6 +81,24 @@ class PHPSite extends AbstractSiteType
                 'nullable',
             ],
         ];
+
+        foreach (static::createTimeTools() as $toolId) {
+            $tool = ToolingRegistry::find($toolId);
+            if (! $tool) {
+                continue;
+            }
+            $rules[$tool::typeDataKey()] = [
+                'nullable',
+                Rule::in($tool::supportedVersionsWithNone()),
+            ];
+        }
+
+        $rules['package_manager'] = [
+            'nullable',
+            Rule::in(['none', NodeTooling::id(), PnpmTooling::id(), YarnTooling::id()]),
+        ];
+
+        return $rules;
     }
 
     public function createFields(array $input): array
@@ -81,9 +115,29 @@ class PHPSite extends AbstractSiteType
 
     public function data(array $input): array
     {
-        return [
+        $data = [
             'composer' => isset($input['composer']) && $input['composer'],
         ];
+
+        $packageManager = $input['package_manager'] ?? 'none';
+
+        foreach (static::createTimeTools() as $toolId) {
+            $tool = ToolingRegistry::find($toolId);
+            if (! $tool) {
+                continue;
+            }
+            $key = $tool::typeDataKey();
+
+            if (in_array($toolId, static::requiredTooling(), true)) {
+                $data[$key] = $tool::supportedVersions()[0] ?? 'none';
+            } elseif ($toolId === $packageManager) {
+                $data[$key] = $input[$key] ?? $tool::supportedVersions()[0];
+            } else {
+                $data[$key] = 'none';
+            }
+        }
+
+        return $data;
     }
 
     /**
@@ -92,20 +146,23 @@ class PHPSite extends AbstractSiteType
      */
     public function install(): void
     {
+        $this->progress(0, 'isolating-user');
         $this->isolate();
-        $this->progress(10);
+        $this->progress(15, 'installing-tooling');
+        $this->setupRequestedTooling();
+        $this->progress(20, 'creating-vhost');
         $this->site->webserver()->createVHost($this->site);
-        $this->progress(25);
+        $this->progress(25, 'deploying-ssh-key');
         $this->deployKey();
-        $this->progress(40);
-        app(Git::class)->clone($this->site);
-        $this->progress(60);
+        $this->progress(40, 'cloning-repository');
+        $this->cloneRepository();
+        $this->progress(60, 'restarting-php');
         $this->site->php()?->restart();
-        $this->progress(75);
+        $this->progress(75, 'installing-composer-dependencies');
         if ($this->site->type_data['composer']) {
             app(Composer::class)->installDependencies($this->site);
         }
-        $this->progress(90);
+        $this->progress(90, 'finishing');
     }
 
     public function baseCommands(): array

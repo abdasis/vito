@@ -1,0 +1,1 @@
+import{i as e,t}from"./useBaseQuery-DC5PlA_7.js";function n(n,r){return t(n,e,r)}export{n as t};

@@ -25,10 +25,12 @@ type CreateForm = {
 
 const CreateDatabaseUser = ({
   server,
+  usesHost = true,
   onDatabaseUserCreated,
   children,
 }: {
   server: number;
+  usesHost?: boolean;
   onDatabaseUserCreated?: () => void;
   children: ReactNode;
 }) => {
@@ -109,20 +111,24 @@ const CreateDatabaseUser = ({
                   placeholder="Select permission"
                   error={form.errors.permission}
                 />
-                <FormCheckbox
-                  label="Allow remote connection"
-                  checked={form.data.remote}
-                  onCheckedChange={(checked) => form.setData('remote', !!checked)}
-                  error={form.errors.remote}
-                />
-                {form.data.remote && (
-                  <FormInput
-                    label="Allow connection from (% for all)"
-                    name="host"
-                    value={form.data.host}
-                    onChange={(e) => form.setData('host', e.target.value)}
-                    error={form.errors.host}
-                  />
+                {usesHost && (
+                  <>
+                    <FormCheckbox
+                      label="Allow remote connection"
+                      checked={form.data.remote}
+                      onCheckedChange={(checked) => form.setData('remote', !!checked)}
+                      error={form.errors.remote}
+                    />
+                    {form.data.remote && (
+                      <FormInput
+                        label="Allow connection from (% for all)"
+                        name="host"
+                        value={form.data.host}
+                        onChange={(e) => form.setData('host', e.target.value)}
+                        error={form.errors.host}
+                      />
+                    )}
+                  </>
                 )}
               </FormFields>
             </Form>
@@ -134,7 +140,7 @@ const CreateDatabaseUser = ({
                 Cancel
               </Button>
             </DialogClose>
-            <Button type="button" onClick={submit} disabled={form.processing}>
+            <Button form="create-database-user-form" type="submit" disabled={form.processing}>
               {form.processing && <LoaderCircle className="animate-spin" />}
               Create
             </Button>

@@ -21,6 +21,16 @@ class Wordpress extends PHPSite
         return new self(new Site(['type' => self::id()]));
     }
 
+    public static function createTimeTools(): array
+    {
+        return [];
+    }
+
+    public static function requiredTooling(): array
+    {
+        return [];
+    }
+
     public function language(): string
     {
         return 'php';
@@ -93,14 +103,15 @@ class Wordpress extends PHPSite
      */
     public function install(): void
     {
+        $this->progress(0, 'isolating-user');
         $this->isolate();
-        $this->progress(10);
+        $this->progress(10, 'creating-vhost');
 
         $this->site->webserver()->createVHost($this->site);
-        $this->progress(25);
+        $this->progress(25, 'restarting-php');
 
         $this->site->php()?->restart();
-        $this->progress(40);
+        $this->progress(40, 'installing-wordpress');
 
         $this->site->server->ssh($this->site->user)->exec(
             view('ssh.wordpress.install', [
@@ -121,6 +132,6 @@ class Wordpress extends PHPSite
             'install-wordpress',
             $this->site->id
         );
-        $this->progress(90);
+        $this->progress(90, 'finishing');
     }
 }

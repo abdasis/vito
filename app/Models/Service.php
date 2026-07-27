@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Actions\Service\Manage;
 use App\Enums\ServiceStatus;
 use App\Exceptions\ServiceInstallationFailed;
+use App\Services\Database\Database;
 use App\Services\Firewall\Firewall;
 use App\Services\PHP\PHP;
 use App\Services\ProcessManager\ProcessManager;
@@ -20,7 +21,7 @@ use InvalidArgumentException;
  * @property int $server_id
  * @property ?int $log_id
  * @property string $type
- * @property array<string, mixed> $type_data
+ * @property ?array<string, mixed> $type_data
  * @property string $name
  * @property string $version
  * @property string $installed_version
@@ -74,7 +75,12 @@ class Service extends AbstractModel
         return $this->belongsTo(ServerLog::class, 'log_id');
     }
 
-    public function handler(): ServiceInterface|Webserver|PHP|Firewall|\App\Services\Database\Database|ProcessManager
+    public function hasHandler(): bool
+    {
+        return (bool) config("service.services.{$this->name}.handler");
+    }
+
+    public function handler(): ServiceInterface|Webserver|PHP|Firewall|Database|ProcessManager
     {
         $name = $this->name;
         $handler = config("service.services.$name.handler");

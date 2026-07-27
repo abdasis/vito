@@ -3,7 +3,9 @@
 namespace App\WebSocket;
 
 use GuzzleHttp\Psr7\HttpFactory;
+use GuzzleHttp\Psr7\Message;
 use Illuminate\Support\Facades\Log;
+use Psr\Http\Message\RequestInterface;
 use Ratchet\RFC6455\Handshake\RequestVerifier;
 use Ratchet\RFC6455\Handshake\ServerNegotiator;
 use Ratchet\RFC6455\Messaging\CloseFrameChecker;
@@ -15,6 +17,8 @@ use React\Socket\ConnectionInterface;
 class WebSocketServer
 {
     protected const MAX_HANDSHAKE_BUFFER = 8192;
+
+    protected const MAX_HTTP_BODY = 1048576;
 
     protected const PING_INTERVAL = 30;
 
@@ -68,11 +72,19 @@ class WebSocketServer
         $conn->on('data', function (string $data) use ($conn, $connId, &$httpBuffer): void {
             if (! isset($this->connections[$connId])) {
                 $httpBuffer .= $data;
-                if (strlen($httpBuffer) > self::MAX_HANDSHAKE_BUFFER) {
+
+                $headersComplete = str_contains($httpBuffer, "\r\n\r\n");
+                $limit = $headersComplete ? self::MAX_HTTP_BODY : self::MAX_HANDSHAKE_BUFFER;
+                if (strlen($httpBuffer) > $limit) {
                     $conn->close();
 
                     return;
                 }
+
+                if (! $headersComplete) {
+                    return;
+                }
+
                 $this->handleHandshake($conn, $connId, $httpBuffer);
 
                 return;
@@ -112,10 +124,23 @@ class WebSocketServer
         }
 
         try {
-            $psrRequest = \GuzzleHttp\Psr7\Message::parseRequest($httpBuffer);
+            $psrRequest = Message::parseRequest($httpBuffer);
 
             // Handle plain HTTP requests (non-WebSocket)
             if (! $psrRequest->hasHeader('Upgrade')) {
+                $contentLength = (int) $psrRequest->getHeaderLine('Content-Length');
+
+                if ($contentLength > self::MAX_HTTP_BODY) {
+                    $conn->end("HTTP/1.1 413 Payload Too Large\r\nConnection: close\r\n\r\n");
+
+                    return;
+                }
+
+                $bodyOffset = strpos($httpBuffer, "\r\n\r\n") + 4;
+                if (strlen($httpBuffer) - $bodyOffset < $contentLength) {
+                    return;
+                }
+
                 $this->handleHttpRequest($conn, $psrRequest);
 
                 return;
@@ -124,7 +149,7 @@ class WebSocketServer
             $response = $this->negotiator->handshake($psrRequest);
 
             if ($response->getStatusCode() !== 101) {
-                $conn->end(\GuzzleHttp\Psr7\Message::toString($response));
+                $conn->end(Message::toString($response));
 
                 return;
             }
@@ -155,7 +180,7 @@ class WebSocketServer
             }
 
             // Complete the WebSocket handshake
-            $conn->write(\GuzzleHttp\Psr7\Message::toString($response));
+            $conn->write(Message::toString($response));
 
             $wsConnection = new WebSocketConnection($conn);
 
@@ -226,7 +251,7 @@ class WebSocketServer
         }
     }
 
-    protected function handleHttpRequest(ConnectionInterface $conn, \Psr\Http\Message\RequestInterface $request): void
+    protected function handleHttpRequest(ConnectionInterface $conn, RequestInterface $request): void
     {
         $path = $request->getUri()->getPath();
         $handler = $this->httpHandlers[$path] ?? null;

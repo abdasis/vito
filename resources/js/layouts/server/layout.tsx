@@ -5,6 +5,7 @@ import Layout from '@/layouts/app/layout';
 import { usePage } from '@inertiajs/react';
 import { Site } from '@/types/site';
 import siteHelper from '@/lib/site-helper';
+import { useRealtimeRecord } from '@/hooks/use-socket-events';
 
 const ServerLayout = ({ children }: { children: ReactNode }) => {
   const page = usePage<{
@@ -12,6 +13,7 @@ const ServerLayout = ({ children }: { children: ReactNode }) => {
     site?: Site;
   }>();
 
+  const server = useRealtimeRecord<Server>(page.props.server, 'server')!;
   const storedSite = siteHelper.getStoredSite();
 
   useEffect(() => {
@@ -26,7 +28,7 @@ const ServerLayout = ({ children }: { children: ReactNode }) => {
 
   return (
     <Layout>
-      <ServerHeader server={page.props.server} site={page.props.site} />
+      <ServerHeader server={server} site={page.props.site} />
 
       <div>{children}</div>
     </Layout>

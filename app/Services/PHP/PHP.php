@@ -2,14 +2,16 @@
 
 namespace App\Services\PHP;
 
+use App\DTOs\ServiceLog;
 use App\Exceptions\SSHCommandError;
 use App\Exceptions\SSHError;
 use App\Services\AbstractService;
+use App\Services\HasLogs;
 use Closure;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
-class PHP extends AbstractService
+class PHP extends AbstractService implements HasLogs
 {
     public static function id(): string
     {
@@ -70,7 +72,6 @@ class PHP extends AbstractService
                 ]),
                 'install-php-'.$this->service->version
             );
-        $this->installComposer();
         event('service.installed', $this->service);
         $this->service->server->os()->cleanup();
     }
@@ -128,17 +129,6 @@ class PHP extends AbstractService
     /**
      * @throws SSHError
      */
-    public function installComposer(): void
-    {
-        $this->service->server->ssh('root')->exec(
-            view('ssh.services.php.install-composer'),
-            'install-composer'
-        );
-    }
-
-    /**
-     * @throws SSHError
-     */
     public function getPHPIni(string $type): string
     {
         return $this->service->server->os()->readFile(
@@ -189,5 +179,50 @@ class PHP extends AbstractService
         }
 
         return trim($version);
+    }
+
+    public function logs(): array
+    {
+        $version = $this->service->version;
+        $serviceLabel = 'PHP '.$version;
+
+        $logs = [
+            new ServiceLog(
+                key: 'php:'.$version.':fpm-journal',
+                serviceLabel: $serviceLabel,
+                label: 'FPM service journal',
+                source: ServiceLog::SOURCE_JOURNAL,
+                target: 'php'.$version.'-fpm.service',
+            ),
+        ];
+
+        $sites = $this->service->server->relationLoaded('sites')
+            ? $this->service->server->sites
+                ->where('php_version', $version)
+                ->sortBy('id')
+            : $this->service->server->sites()
+                ->where('php_version', $version)
+                ->orderBy('id')
+                ->get(['id', 'domain', 'user']);
+
+        /** @var array<string, array<int, string>> $domainsByUser */
+        $domainsByUser = [];
+        foreach ($sites as $site) {
+            $user = $site->user;
+            $domainsByUser[$user] = $domainsByUser[$user] ?? [];
+            $domainsByUser[$user][] = $site->domain;
+        }
+
+        foreach ($domainsByUser as $user => $domains) {
+            $logs[] = new ServiceLog(
+                key: 'php:'.$version.':user:'.$user,
+                serviceLabel: $serviceLabel,
+                label: 'FPM pool '.$user.' ('.implode(', ', $domains).')',
+                source: ServiceLog::SOURCE_FILE,
+                target: '/home/'.$user.'/.logs/php_errors.log',
+            );
+        }
+
+        return $logs;
     }
 }

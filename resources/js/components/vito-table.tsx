@@ -1,6 +1,7 @@
-import { ReactNode } from 'react';
-import { useTable, type InertiaTableData, type InertiaTableProps, type CellRenderProps } from 'inertia-table-react';
-import { Link } from '@inertiajs/react';
+import { ReactNode, useEffect } from 'react';
+import { useTable, type InertiaTableData, type InertiaTableProps, type CellRenderProps } from '@forjedio/inertia-table-react';
+import { Link, router } from '@inertiajs/react';
+import { SOCKET_EVENT, type SocketEventData } from '@/stores/socket-store';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,11 @@ interface VitoTableProps extends Omit<InertiaTableProps, 'tableData'> {
   children?: ReactNode;
 }
 
+function getRealtimePrefix(tableData: InertiaTableData): string | undefined {
+  const value = tableData.tableSettings?.realtime;
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
 function resolveHref(display: CellRenderProps['displays'][number], row: CellRenderProps['row']): string | null {
   if (display.type !== 'link') return null;
   if (display.href_key) return row[display.href_key] as string;
@@ -37,9 +43,12 @@ function resolveHref(display: CellRenderProps['displays'][number], row: CellRend
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function vitoCellRenderer({ row, value, displays, defaultRender }: CellRenderProps & { defaultRender: () => any }): any {
   if (displays.length === 1 && displays[0].type === 'badge') {
+    if (value == null || value === '') {
+      return <span className="text-muted-foreground">-</span>;
+    }
     const display = displays[0];
     const color = display.color_field ? (row[display.color_field] as string) : display.variant;
-    return <Badge variant={(color ?? 'default') as 'default'}>{String(value ?? '')}</Badge>;
+    return <Badge variant={(color ?? 'default') as 'default'}>{String(value)}</Badge>;
   }
 
   if (displays.some((d) => d.type === 'link')) {
@@ -62,9 +71,27 @@ export function VitoTable({ tableData, children, modal, isFetching, ...props }: 
     tableData,
     modal,
     isFetching,
-    renderCell: vitoCellRenderer,
+    renderCell: vitoCellRenderer as InertiaTableProps['renderCell'],
     ...props,
   });
+
+  const realtimePrefix = getRealtimePrefix(tableData);
+  useEffect(() => {
+    if (!realtimePrefix) return;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const handler = (e: Event) => {
+      const type = (e as CustomEvent<SocketEventData>).detail?.type;
+      if (type?.startsWith(`${realtimePrefix}.`)) {
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(() => router.reload(), 900);
+      }
+    };
+    window.addEventListener(SOCKET_EVENT, handler);
+    return () => {
+      if (timeout) clearTimeout(timeout);
+      window.removeEventListener(SOCKET_EVENT, handler);
+    };
+  }, [realtimePrefix]);
 
   const processing = isProcessing || isFetching;
 

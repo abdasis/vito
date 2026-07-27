@@ -20,7 +20,12 @@ return [
 
     'ssr' => [
         'enabled' => (bool) env('INERTIA_SSR_ENABLED', false),
+        'runtime' => env('INERTIA_SSR_RUNTIME', 'node'),
+        'ensure_runtime_exists' => (bool) env('INERTIA_SSR_ENSURE_RUNTIME_EXISTS', false),
         'url' => env('INERTIA_SSR_URL', 'http://127.0.0.1:13714'),
+        'ensure_bundle_exists' => (bool) env('INERTIA_SSR_ENSURE_BUNDLE_EXISTS', true),
+        // 'bundle' => base_path('bootstrap/ssr/ssr.mjs'),
+        'throw_on_error' => (bool) env('INERTIA_SSR_THROW_ON_ERROR', false),
     ],
 
     /*
@@ -28,15 +33,13 @@ return [
     | Pages
     |--------------------------------------------------------------------------
     |
-    | The values described here are used to locate Inertia components on the
-    | filesystem. For instance, when using `assertInertia`, the assertion
-    | attempts to locate the component as a file relative to any of the
-    | paths AND with any of the extensions specified here.
+    | The `paths` and `extensions` options define where to look for page
+    | components and which file extensions to consider.
     |
     */
 
     'pages' => [
-        'ensure_pages_exist' => false,
+        'ensure_pages_exist' => true,
 
         'paths' => [
             resource_path('js/pages'),
@@ -56,11 +59,18 @@ return [
     |--------------------------------------------------------------------------
     | Testing
     |--------------------------------------------------------------------------
+    |
+    | When using `assertInertia`, the assertion attempts to locate the
+    | component as a file relative to `pages.paths` AND with any of the
+    | `pages.extensions` defined above.
+    |
     */
 
     'testing' => [
         'ensure_pages_exist' => true,
     ],
+
+    'expose_shared_prop_keys' => true,
 
     'history' => [
         'encrypt' => (bool) env('INERTIA_ENCRYPT_HISTORY', false),

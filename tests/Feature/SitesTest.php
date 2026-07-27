@@ -3,17 +3,19 @@
 namespace Tests\Feature;
 
 use App\Enums\LoadBalancerMethod;
+use App\Enums\ServiceStatus;
 use App\Enums\SiteStatus;
 use App\Facades\SSH;
 use App\Models\Database;
 use App\Models\DatabaseUser;
+use App\Models\Service;
 use App\Models\Site;
 use App\Models\SourceControl;
+use App\SiteTypes\Blank;
+use App\SiteTypes\BunSite;
 use App\SiteTypes\Laravel;
 use App\SiteTypes\LoadBalancer;
-use App\SiteTypes\MiseBun;
-use App\SiteTypes\MiseNodeJS;
-use App\SiteTypes\NodeJS;
+use App\SiteTypes\NodeSite;
 use App\SiteTypes\PHPBlank;
 use App\SiteTypes\PHPMyAdmin;
 use App\SiteTypes\Wordpress;
@@ -58,6 +60,7 @@ class SitesTest extends TestCase
         /** @var SourceControl $sourceControl */
         $sourceControl = SourceControl::factory()->create([
             'provider' => Github::id(),
+            'user_id' => $this->user->id,
         ]);
 
         $inputs['source_control'] = $sourceControl->id;
@@ -86,6 +89,220 @@ class SitesTest extends TestCase
             ->assertSessionHasErrors();
     }
 
+    public function test_create_site_reusing_existing_isolated_user(): void
+    {
+        SSH::fake();
+
+        $this->actingAs($this->user);
+
+        Site::factory()->create([
+            'server_id' => $this->server->id,
+            'user' => 'shared',
+            'domain' => 'first.example.com',
+            'path' => '/home/shared/first.example.com',
+            'php_version' => '8.2',
+        ]);
+
+        $this->post(route('sites.store', ['server' => $this->server]), [
+            'type' => PHPBlank::id(),
+            'domain' => 'second.example.com',
+            'aliases' => [],
+            'php_version' => '8.2',
+            'web_directory' => 'public',
+            'user' => 'shared',
+        ])
+            ->assertSessionDoesntHaveErrors();
+
+        $this->assertDatabaseHas('sites', [
+            'domain' => 'first.example.com',
+            'user' => 'shared',
+        ]);
+        $this->assertDatabaseHas('sites', [
+            'domain' => 'second.example.com',
+            'user' => 'shared',
+            'path' => '/home/shared/second.example.com',
+        ]);
+
+        SSH::assertExecutedContains('User shared already exists');
+    }
+
+    public function test_isolated_users_endpoint_lists_users_with_counts(): void
+    {
+        $this->actingAs($this->user);
+
+        Site::factory()->create([
+            'server_id' => $this->server->id,
+            'user' => 'shop',
+            'domain' => 'shop1.test',
+            'path' => '/home/shop/shop1.test',
+        ]);
+        Site::factory()->create([
+            'server_id' => $this->server->id,
+            'user' => 'shop',
+            'domain' => 'shop2.test',
+            'path' => '/home/shop/shop2.test',
+        ]);
+        Site::factory()->create([
+            'server_id' => $this->server->id,
+            'user' => 'blog',
+            'domain' => 'blog.test',
+            'path' => '/home/blog/blog.test',
+        ]);
+
+        $response = $this->getJson(route('sites.isolated-users', ['server' => $this->server]));
+
+        $response->assertSuccessful();
+        $data = collect($response->json())->keyBy('user');
+
+        $this->assertSame(2, $data['shop']['sites_count']);
+        $this->assertSame(1, $data['blog']['sites_count']);
+        $this->assertArrayNotHasKey('vito', $data->all());
+    }
+
+    public function test_delete_site_keeps_isolated_user_when_others_share_it(): void
+    {
+        SSH::fake();
+
+        $this->actingAs($this->user);
+
+        $siteA = Site::factory()->create([
+            'server_id' => $this->server->id,
+            'user' => 'shared',
+            'domain' => 'a.test',
+            'path' => '/home/shared/a.test',
+            'php_version' => '8.2',
+        ]);
+        Site::factory()->create([
+            'server_id' => $this->server->id,
+            'user' => 'shared',
+            'domain' => 'b.test',
+            'path' => '/home/shared/b.test',
+            'php_version' => '8.2',
+        ]);
+
+        $this->delete(route('site-settings.destroy', [
+            'server' => $this->server->id,
+            'site' => $siteA->id,
+        ]), [
+            'domain' => $siteA->domain,
+        ])->assertSessionDoesntHaveErrors();
+
+        $this->assertDatabaseMissing('sites', ['id' => $siteA->id]);
+        $this->assertDatabaseHas('sites', ['domain' => 'b.test', 'user' => 'shared']);
+
+        SSH::assertNotExecutedContains('userdel');
+    }
+
+    public function test_delete_last_isolated_site_removes_user(): void
+    {
+        SSH::fake();
+
+        $this->actingAs($this->user);
+
+        $site = Site::factory()->create([
+            'server_id' => $this->server->id,
+            'user' => 'lonely',
+            'domain' => 'lonely.test',
+            'path' => '/home/lonely/lonely.test',
+            'php_version' => '8.2',
+        ]);
+
+        $this->delete(route('site-settings.destroy', [
+            'server' => $this->server->id,
+            'site' => $site->id,
+        ]), [
+            'domain' => $site->domain,
+        ])->assertSessionDoesntHaveErrors();
+
+        $this->assertDatabaseMissing('sites', ['id' => $site->id]);
+
+        SSH::assertExecutedContains('userdel');
+    }
+
+    public function test_php_version_switch_removes_old_pool_when_not_shared(): void
+    {
+        SSH::fake();
+
+        $this->actingAs($this->user);
+
+        Service::query()->create([
+            'server_id' => $this->server->id,
+            'type' => 'php',
+            'name' => 'php',
+            'version' => '8.4',
+            'status' => ServiceStatus::READY,
+        ]);
+
+        Site::factory()->create([
+            'server_id' => $this->server->id,
+            'user' => 'shared',
+            'domain' => 'a.test',
+            'path' => '/home/shared/a.test',
+            'php_version' => '8.2',
+        ]);
+        $siteB = Site::factory()->create([
+            'server_id' => $this->server->id,
+            'user' => 'shared',
+            'domain' => 'b.test',
+            'path' => '/home/shared/b.test',
+            'php_version' => '8.4',
+        ]);
+
+        $this->patch(route('site-settings.update-php-version', [
+            'server' => $this->server->id,
+            'site' => $siteB->id,
+        ]), [
+            'version' => '8.2',
+        ])->assertSessionDoesntHaveErrors();
+
+        $siteB->refresh();
+        $this->assertSame('8.2', $siteB->php_version);
+
+        SSH::assertExecutedContains('rm -f /etc/php/8.4/fpm/pool.d/shared.conf');
+    }
+
+    public function test_php_version_switch_preserves_shared_old_pool(): void
+    {
+        SSH::fake();
+
+        $this->actingAs($this->user);
+
+        Service::query()->create([
+            'server_id' => $this->server->id,
+            'type' => 'php',
+            'name' => 'php',
+            'version' => '8.4',
+            'status' => ServiceStatus::READY,
+        ]);
+
+        Site::factory()->create([
+            'server_id' => $this->server->id,
+            'user' => 'shared',
+            'domain' => 'a.test',
+            'path' => '/home/shared/a.test',
+            'php_version' => '8.2',
+        ]);
+        $siteB = Site::factory()->create([
+            'server_id' => $this->server->id,
+            'user' => 'shared',
+            'domain' => 'b.test',
+            'path' => '/home/shared/b.test',
+            'php_version' => '8.2',
+        ]);
+
+        $this->patch(route('site-settings.update-php-version', [
+            'server' => $this->server->id,
+            'site' => $siteB->id,
+        ]), [
+            'version' => '8.4',
+        ])->assertSessionDoesntHaveErrors();
+
+        $siteB->refresh();
+        $this->assertSame('8.4', $siteB->php_version);
+
+        SSH::assertNotExecutedContains('rm -f /etc/php/8.2/fpm/pool.d/shared.conf');
+    }
+
     #[DataProvider('create_failure_data')]
     public function test_create_site_failed_due_to_source_control(int $status): void
     {
@@ -112,6 +329,7 @@ class SitesTest extends TestCase
         /** @var SourceControl $sourceControl */
         $sourceControl = SourceControl::factory()->create([
             'provider' => Github::id(),
+            'user_id' => $this->user->id,
         ]);
 
         $inputs['source_control'] = $sourceControl->id;
@@ -123,6 +341,91 @@ class SitesTest extends TestCase
             'domain' => 'example.com',
             'status' => SiteStatus::READY,
         ]);
+    }
+
+    public function test_create_blank_site_without_source_control(): void
+    {
+        SSH::fake();
+
+        $this->actingAs($this->user);
+
+        $this->post(route('sites.store', ['server' => $this->server]), [
+            'type' => Blank::id(),
+            'domain' => 'blank-example.com',
+            'port' => '3000',
+            'user' => 'blanktest',
+        ])->assertSessionDoesntHaveErrors();
+
+        $this->assertDatabaseHas('sites', [
+            'domain' => 'blank-example.com',
+            'status' => SiteStatus::READY->value,
+            'user' => 'blanktest',
+            'source_control_id' => null,
+        ]);
+    }
+
+    public function test_create_blank_site_with_source_control_requires_repository(): void
+    {
+        SSH::fake();
+
+        $this->actingAs($this->user);
+        /** @var SourceControl $sourceControl */
+        $sourceControl = SourceControl::factory()->create([
+            'provider' => Github::id(),
+            'user_id' => $this->user->id,
+        ]);
+
+        $this->post(route('sites.store', ['server' => $this->server]), [
+            'type' => Blank::id(),
+            'domain' => 'blank-sc.com',
+            'port' => '3000',
+            'user' => 'blanksc',
+            'use_source_control' => true,
+            'source_control' => $sourceControl->id,
+        ])->assertSessionHasErrors(['repository', 'branch']);
+    }
+
+    public function test_create_laravel_site_dispatches_ensure_env_script(): void
+    {
+        SSH::fake();
+        Http::fake([
+            'https://api.github.com/repos/*' => Http::response([], 201),
+        ]);
+
+        $this->actingAs($this->user);
+        /** @var SourceControl $sourceControl */
+        $sourceControl = SourceControl::factory()->create([
+            'provider' => Github::id(),
+            'user_id' => $this->user->id,
+        ]);
+
+        $this->post(route('sites.store', ['server' => $this->server]), [
+            'type' => Laravel::id(),
+            'domain' => 'env-example.com',
+            'php_version' => '8.2',
+            'web_directory' => 'public',
+            'repository' => 'test/test',
+            'branch' => 'main',
+            'composer' => false,
+            'node_version' => 'none',
+            'user' => 'envtest',
+            'source_control' => $sourceControl->id,
+        ])->assertSessionDoesntHaveErrors();
+
+        $this->assertDatabaseHas('sites', [
+            'domain' => 'env-example.com',
+            'status' => SiteStatus::READY->value,
+            'user' => 'envtest',
+            'path' => '/home/envtest/env-example.com',
+        ]);
+
+        $envPath = '/home/envtest/env-example.com/.env';
+        $examplePath = '/home/envtest/env-example.com/.env.example';
+
+        SSH::assertExecutedContains("[ -f '{$envPath}' ]");
+        SSH::assertExecutedContains("cp -- '{$examplePath}' '{$envPath}'");
+        SSH::assertExecutedContains("touch -- '{$envPath}'");
+        SSH::assertExecutedContains("chmod 640 -- '{$envPath}'");
     }
 
     public function test_see_sites_list(): void
@@ -200,6 +503,7 @@ class SitesTest extends TestCase
         /** @var SourceControl $sourceControl */
         $sourceControl = SourceControl::factory()->create([
             'provider' => Github::id(),
+            'user_id' => $this->user->id,
         ]);
 
         $this->patch(route('site-settings.update-source-control', [
@@ -229,6 +533,7 @@ class SitesTest extends TestCase
         /** @var SourceControl $sourceControl */
         $sourceControl = SourceControl::factory()->create([
             'provider' => Github::id(),
+            'user_id' => $this->user->id,
         ]);
 
         $this->patch(route('site-settings.update-source-control', [
@@ -288,7 +593,7 @@ class SitesTest extends TestCase
         $this->site->refresh();
         $this->assertEquals('master', $this->site->branch);
 
-        SSH::assertExecutedContains('git checkout -f master');
+        SSH::assertExecutedContains("git checkout -f 'master'");
     }
 
     public function test_update_web_directory(): void
@@ -568,6 +873,33 @@ class SitesTest extends TestCase
                     'user' => 'qwertyuiopasdfghjklzxcvbnmqwertyu',
                 ],
             ],
+            [
+                [
+                    'type' => PHPBlank::id(),
+                    'domain' => 'example.com',
+                    'php_version' => '8.2',
+                    'web_directory' => 'public',
+                    'user' => 'www-data',
+                ],
+            ],
+            [
+                [
+                    'type' => PHPBlank::id(),
+                    'domain' => 'example.com',
+                    'php_version' => '8.2',
+                    'web_directory' => 'public',
+                    'user' => 'mysql',
+                ],
+            ],
+            [
+                [
+                    'type' => PHPBlank::id(),
+                    'domain' => 'example.com',
+                    'php_version' => '8.2',
+                    'web_directory' => 'public',
+                    'user' => 'ubuntu',
+                ],
+            ],
         ];
     }
 
@@ -586,6 +918,7 @@ class SitesTest extends TestCase
                     'repository' => 'test/test',
                     'branch' => 'main',
                     'composer' => true,
+                    'node_version' => 'none',
                     'user' => 'example',
                 ],
             ],
@@ -631,10 +964,10 @@ class SitesTest extends TestCase
             ],
             [
                 [
-                    'type' => MiseNodeJS::id(),
+                    'type' => NodeSite::id(),
                     'domain' => 'example.com',
-                    'node_version' => '20',
-                    'package_manager' => 'npm',
+                    'node_version' => '23',
+                    'package_manager' => 'node',
                     'port' => '3000',
                     'repository' => 'test/test',
                     'branch' => 'main',
@@ -643,10 +976,11 @@ class SitesTest extends TestCase
             ],
             [
                 [
-                    'type' => MiseNodeJS::id(),
+                    'type' => NodeSite::id(),
                     'domain' => 'example.com',
                     'node_version' => '22',
                     'package_manager' => 'yarn',
+                    'yarn_version' => '4',
                     'port' => '3000',
                     'repository' => 'test/test',
                     'branch' => 'main',
@@ -655,22 +989,11 @@ class SitesTest extends TestCase
             ],
             [
                 [
-                    'type' => MiseNodeJS::id(),
+                    'type' => NodeSite::id(),
                     'domain' => 'example.com',
                     'node_version' => '22',
                     'package_manager' => 'pnpm',
-                    'port' => '3000',
-                    'repository' => 'test/test',
-                    'branch' => 'main',
-                    'build_command' => 'pnpm run build:prod',
-                    'start_command' => 'pnpm run start:prod',
-                    'user' => 'example',
-                ],
-            ],
-            [
-                [
-                    'type' => NodeJS::id(),
-                    'domain' => 'example.com',
+                    'pnpm_version' => '9',
                     'port' => '3000',
                     'repository' => 'test/test',
                     'branch' => 'main',
@@ -679,7 +1002,7 @@ class SitesTest extends TestCase
             ],
             [
                 [
-                    'type' => MiseBun::id(),
+                    'type' => BunSite::id(),
                     'domain' => 'example.com',
                     'bun_version' => '1.2',
                     'port' => '3000',
@@ -690,14 +1013,12 @@ class SitesTest extends TestCase
             ],
             [
                 [
-                    'type' => MiseBun::id(),
+                    'type' => BunSite::id(),
                     'domain' => 'example.com',
                     'bun_version' => '1.1',
                     'port' => '3000',
                     'repository' => 'test/test',
                     'branch' => 'main',
-                    'build_command' => 'bun run build:prod',
-                    'start_command' => 'bun run start:prod',
                     'user' => 'example',
                 ],
             ],

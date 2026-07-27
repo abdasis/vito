@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\MustBeAdminMiddleware;
 use Illuminate\Support\Str;
 
 return [
@@ -72,7 +73,7 @@ return [
 
     'middleware' => [
         'web',
-        \App\Http\Middleware\MustBeAdminMiddleware::class,
+        MustBeAdminMiddleware::class,
     ],
 
     /*
@@ -198,7 +199,7 @@ return [
         ],
 
         'ssh' => [
-            'connection' => 'redis',
+            'connection' => 'ssh',
             'queue' => ['ssh'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
@@ -207,7 +208,7 @@ return [
             'maxJobs' => env('HORIZON_SSH_MAX_JOBS', 0),
             'memory' => env('HORIZON_SSH_MEMORY', 128),
             'tries' => env('HORIZON_SSH_TRIES', 1),
-            'timeout' => env('HORIZON_SSH_TIMEOUT', 600),
+            'timeout' => env('HORIZON_SSH_TIMEOUT', 1200),
             'nice' => env('HORIZON_SSH_NICE', 0),
         ],
 

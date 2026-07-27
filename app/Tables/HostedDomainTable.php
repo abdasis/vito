@@ -36,7 +36,12 @@ class HostedDomainTable extends Table
                     HostedDomainType::ALIAS => 'copy',
                     HostedDomainType::REDIRECT => 'signpost',
                 }),
-            EnumColumn::make('ssl_method', 'SSL')->uppercase(),
+            Column::make('ssl_method', 'SSL')
+                ->value(fn (HostedDomain $hd) => $hd->ssl_method->value)
+                ->badge(
+                    value: fn (HostedDomain $hd) => strtoupper($hd->ssl_method->getText()),
+                    variant: 'outline',
+                ),
             Column::make('certificate', 'Certificate'),
             BadgeColumn::make('ssl.expires_at', 'Expires In')
                 ->variant('outline')
@@ -48,6 +53,7 @@ class HostedDomainTable extends Table
             Column::data('type', fn (HostedDomain $hd) => $hd->type->getText()),
             Column::data('type_color', fn (HostedDomain $hd) => $hd->type->getColor()),
             Column::data('ssl_id'),
+            Column::data('ssl_can_check_expiry', fn (HostedDomain $hd) => $hd->ssl !== null && $hd->ssl->certificate_path !== null),
             Column::data('error'),
             Column::data('ssl', fn (HostedDomain $hd) => $hd->ssl ? SslResource::make($hd->ssl) : null),
             ActionsColumn::make(),

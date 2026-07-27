@@ -1,24 +1,58 @@
 import { AppSidebar } from '@/components/app-sidebar-nested';
 import { AppHeader } from '@/components/app-header';
-import { type BreadcrumbItem, SharedData } from '@/types';
-import { type PropsWithChildren, useEffect, useState } from 'react';
+import { type BreadcrumbItem, NavItem, SharedData } from '@/types';
+import { type PropsWithChildren, useCallback, useEffect, useState } from 'react';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { usePage } from '@inertiajs/react';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { type SocketEventData, useSocketEvents, useSocketListener } from '@/hooks/use-socket-events';
+import { useBootstrapStore } from '@/stores/bootstrap-store';
+import { Button } from '@/components/ui/button';
+import { AlertCircleIcon } from 'lucide-react';
+import DialogHost from '@/components/dialogs/dialog-host';
 import { Breadcrumbs } from '@/components/breadcrumbs';
-import { useSocketEvents } from '@/hooks/use-socket-events';
 
 export default function Layout({
   children,
   breadcrumbs,
+  secondNavItems,
+  secondNavTitle,
 }: PropsWithChildren<{
   breadcrumbs?: BreadcrumbItem[];
+  secondNavItems?: NavItem[];
+  secondNavTitle?: string;
 }>) {
   const page = usePage<SharedData>();
   const { status: socketStatus, reconnect: socketReconnect } = useSocketEvents();
+  const syncBootstrap = useBootstrapStore((s) => s.syncWithServerVersion);
+  const fetchBootstrap = useBootstrapStore((s) => s.fetch);
+  const bootstrapConfigsLoaded = useBootstrapStore((s) => s.configs !== null);
+  const bootstrapStatus = useBootstrapStore((s) => s.status);
+  const serverBootstrapVersion = page.props.bootstrap_version;
+
+  useEffect(() => {
+    syncBootstrap(serverBootstrapVersion);
+  }, [serverBootstrapVersion, syncBootstrap]);
+
+  useEffect(() => {
+    if (socketStatus === 'connected' && useBootstrapStore.getState().status === 'error') {
+      syncBootstrap(serverBootstrapVersion);
+    }
+  }, [socketStatus, serverBootstrapVersion, syncBootstrap]);
+
+  useSocketListener(
+    useCallback(
+      (event: SocketEventData) => {
+        if (event.type === 'bootstrap.invalidated') {
+          fetchBootstrap();
+        }
+      },
+      [fetchBootstrap],
+    ),
+  );
 
   useEffect(() => {
     if (page.props.flash && page.props.flash.success) {
@@ -37,6 +71,8 @@ export default function Layout({
 
   const [queryClient] = useState(() => new QueryClient());
 
+  const showBootstrapError = bootstrapStatus === 'error' && !bootstrapConfigsLoaded;
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -51,7 +87,27 @@ export default function Layout({
                 </div>
               </div>
             )}
-            <div className="flex flex-1 flex-col">{children}</div>
+            <div className="flex flex-1 flex-col">
+              {showBootstrapError ? (
+                <div className="flex flex-1 items-center justify-center p-6">
+                  <div className="flex max-w-md flex-col items-center gap-4 text-center">
+                    <AlertCircleIcon className="text-destructive size-8" />
+                    <div>
+                      <h2 className="text-lg font-semibold">Failed to load application data</h2>
+                      <p className="text-muted-foreground mt-1 text-sm">
+                        We couldn't reach the server to load configuration. Check your connection and try again.
+                      </p>
+                    </div>
+                    <Button onClick={() => fetchBootstrap()}>Retry</Button>
+                  </div>
+                </div>
+              ) : bootstrapConfigsLoaded ? (
+                <>
+                  {children}
+                  <DialogHost />
+                </>
+              ) : null}
+            </div>
             <Toaster richColors position="bottom-center" />
           </SidebarInset>
         </SidebarProvider>

@@ -7,6 +7,8 @@ use App\Actions\Worker\DeleteWorker;
 use App\Actions\Worker\EditWorker;
 use App\Actions\Worker\GetWorkerLogs;
 use App\Actions\Worker\ManageWorker;
+use App\Actions\Worker\RestartAllWorkers;
+use App\Actions\Worker\SyncWorkerStatuses;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\WorkerResource;
 use App\Models\Project;
@@ -16,12 +18,14 @@ use App\Models\Worker;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\ResourceCollection;
+use Illuminate\Http\Response;
 use Spatie\RouteAttributes\Attributes\Delete;
 use Spatie\RouteAttributes\Attributes\Get;
 use Spatie\RouteAttributes\Attributes\Middleware;
 use Spatie\RouteAttributes\Attributes\Post;
 use Spatie\RouteAttributes\Attributes\Prefix;
 use Spatie\RouteAttributes\Attributes\Put;
+use Spatie\RouteAttributes\Attributes\WhereNumber;
 
 #[Prefix('api/projects/{project}/servers/{server}')]
 #[Middleware(['auth:sanctum', 'can-see-project'])]
@@ -75,7 +79,38 @@ class WorkerController extends Controller
         return new WorkerResource($worker);
     }
 
+    #[Post('/workers/resync/{site?}', name: 'api.projects.servers.workers.resync', middleware: 'ability:write')]
+    #[WhereNumber('site')]
+    public function resync(Project $project, Server $server, ?Site $site = null): JsonResponse
+    {
+        $this->authorize('update', [$project, $server]);
+
+        $this->validateRoute($project, $server, $site);
+
+        $count = app(SyncWorkerStatuses::class)->sync($server, $site);
+
+        return response()->json([
+            'synced' => $count,
+        ]);
+    }
+
+    #[Post('/workers/restart-all/{site?}', name: 'api.projects.servers.workers.restart-all', middleware: 'ability:write')]
+    #[WhereNumber('site')]
+    public function restartAll(Project $project, Server $server, ?Site $site = null): JsonResponse
+    {
+        $this->authorize('update', [$project, $server]);
+
+        $this->validateRoute($project, $server, $site);
+
+        app(RestartAllWorkers::class)->restart($server, $site);
+
+        return response()->json([
+            'message' => 'Workers are being restarted.',
+        ], 202);
+    }
+
     #[Post('/workers/{site?}', name: 'api.projects.servers.workers.create', middleware: 'ability:write')]
+    #[WhereNumber('site')]
     public function create(Request $request, Project $project, Server $server, ?Site $site = null): WorkerResource
     {
         $this->authorize('create', [$project, $server, $site]);
@@ -138,7 +173,7 @@ class WorkerController extends Controller
     }
 
     #[Delete('/workers/{worker}/{site?}', name: 'api.projects.servers.workers.delete', middleware: 'ability:write')]
-    public function delete(Request $request, Project $project, Server $server, Worker $worker, ?Site $site = null): \Illuminate\Http\Response
+    public function delete(Request $request, Project $project, Server $server, Worker $worker, ?Site $site = null): Response
     {
         $this->authorize('delete', [$project, $server, $site, $worker]);
 

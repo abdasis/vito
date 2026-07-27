@@ -23,16 +23,24 @@ export interface Server {
   public_key: string;
   status: string;
   auto_update: boolean;
+  auto_update_schedule?: string | null;
   progress?: string;
   progress_step?: string;
   updates: number;
+  kernel_updates: number;
   last_update_check?: string;
   features: ServerFeature[];
   created_at: string;
   updated_at: string;
   status_color: 'gray' | 'success' | 'info' | 'warning' | 'danger';
+  warnings?: ServerWarning[];
   [key: string]: unknown;
 }
+
+export type ServerWarning =
+  | { key: 'updates_available'; count: number }
+  | { key: 'reboot_required' }
+  | { key: 'kernel_update_available'; count: number };
 
 export interface ServerFeature {
   label: string;

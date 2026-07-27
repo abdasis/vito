@@ -48,7 +48,9 @@ abstract class AbstractWebserver extends AbstractService implements Webserver
 
     public function siteDefaults(): array
     {
-        return [];
+        return [
+            'ssl_enabled' => true,
+        ];
     }
 
     public function canConfigureSSL(): bool
@@ -67,4 +69,6 @@ abstract class AbstractWebserver extends AbstractService implements Webserver
     }
 
     abstract public function generateVhost(Site $site, ?string $template = null): string;
+
+    abstract public function deploySplash(): void;
 }

@@ -6,7 +6,9 @@ use App\Plugins\RegisterServiceType;
 use App\Services\Database\Mariadb;
 use App\Services\Database\Mysql;
 use App\Services\Database\Postgresql;
+use App\Services\Fail2ban\Fail2ban;
 use App\Services\Firewall\Ufw;
+use App\Services\LogAnalysis\GoAccess\GoAccess;
 use App\Services\Monitoring\RemoteMonitor\RemoteMonitor;
 use App\Services\Monitoring\VitoAgent\VitoAgent;
 use App\Services\NodeJS\NodeJS;
@@ -28,8 +30,10 @@ class ServiceTypeServiceProvider extends ServiceProvider
         $this->databases();
         $this->memoryDatabases();
         $this->firewalls();
+        $this->fail2ban();
         $this->processManagers();
         $this->monitoring();
+        $this->logAnalysis();
         $this->php();
         $this->node();
     }
@@ -55,6 +59,13 @@ class ServiceTypeServiceProvider extends ServiceProvider
             ->label('Caddy (beta)')
             ->handler(Caddy::class)
             ->data(['creates_site_ssls' => false])
+            ->configPaths([
+                [
+                    'name' => 'Caddyfile',
+                    'path' => '/etc/caddy/Caddyfile',
+                    'sudo' => true,
+                ],
+            ])
             ->register();
     }
 
@@ -65,13 +76,18 @@ class ServiceTypeServiceProvider extends ServiceProvider
             ->label('MySQL')
             ->handler(Mysql::class)
             ->versions([
+                '9.7',
                 '8.4',
-                '8.0',
             ])
             ->configPaths([
                 [
                     'name' => 'my.cnf',
                     'path' => '/etc/mysql/my.cnf',
+                    'sudo' => true,
+                ],
+                [
+                    'name' => 'mysqld.cnf',
+                    'path' => '/etc/mysql/mysql.conf.d/mysqld.cnf',
                     'sudo' => true,
                 ],
             ])
@@ -85,14 +101,21 @@ class ServiceTypeServiceProvider extends ServiceProvider
                 '17',
                 '16',
                 '15',
-                '14',
-                '13',
-                '12',
             ])
             ->configPaths([
                 [
                     'name' => 'postgresql.conf',
                     'path' => '/etc/postgresql/{version}/main/postgresql.conf',
+                    'sudo' => true,
+                ],
+                [
+                    'name' => 'pg_hba.conf',
+                    'path' => '/etc/postgresql/{version}/main/pg_hba.conf',
+                    'sudo' => true,
+                ],
+                [
+                    'name' => 'pg_ident.conf',
+                    'path' => '/etc/postgresql/{version}/main/pg_ident.conf',
                     'sudo' => true,
                 ],
             ])
@@ -102,16 +125,20 @@ class ServiceTypeServiceProvider extends ServiceProvider
             ->label('MariaDB')
             ->handler(Mariadb::class)
             ->versions([
+                '12.3',
+                '11.8',
                 '11.4',
                 '10.11',
-                '10.6',
-                '10.4',
-                '10.3',
             ])
             ->configPaths([
                 [
                     'name' => 'my.cnf',
                     'path' => '/etc/mysql/my.cnf',
+                    'sudo' => true,
+                ],
+                [
+                    'name' => '50-server.cnf',
+                    'path' => '/etc/mysql/mariadb.conf.d/50-server.cnf',
                     'sudo' => true,
                 ],
             ])
@@ -156,6 +183,16 @@ class ServiceTypeServiceProvider extends ServiceProvider
             ->register();
     }
 
+    private function fail2ban(): void
+    {
+        RegisterServiceType::make(Fail2ban::id())
+            ->type(Fail2ban::type())
+            ->label('Fail2ban')
+            ->handler(Fail2ban::class)
+            ->versions(['latest'])
+            ->register();
+    }
+
     private function processManagers(): void
     {
         RegisterServiceType::make(Supervisor::id())
@@ -184,6 +221,15 @@ class ServiceTypeServiceProvider extends ServiceProvider
             ->type(RemoteMonitor::type())
             ->label('RemoteMonitor')
             ->handler(RemoteMonitor::class)
+            ->register();
+    }
+
+    private function logAnalysis(): void
+    {
+        RegisterServiceType::make(GoAccess::id())
+            ->type(GoAccess::type())
+            ->label('GoAccess')
+            ->handler(GoAccess::class)
             ->register();
     }
 
@@ -216,6 +262,18 @@ class ServiceTypeServiceProvider extends ServiceProvider
                     'intl',
                     'sqlite3',
                     'opcache',
+                ],
+            ])
+            ->configPaths([
+                [
+                    'name' => 'fpm/php.ini',
+                    'path' => '/etc/php/{version}/fpm/php.ini',
+                    'sudo' => true,
+                ],
+                [
+                    'name' => 'cli/php.ini',
+                    'path' => '/etc/php/{version}/cli/php.ini',
+                    'sudo' => true,
                 ],
             ])
             ->register();

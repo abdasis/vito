@@ -2,7 +2,11 @@
 
 namespace App\Services\Database;
 
-class Mysql extends AbstractDatabase
+use App\DTOs\ServiceLog;
+use App\Services\HasLogs;
+use Illuminate\Contracts\View\View;
+
+class Mysql extends AbstractDatabase implements HasLogs
 {
     protected array $systemDbs = ['information_schema', 'performance_schema', 'mysql', 'sys'];
 
@@ -30,12 +34,32 @@ class Mysql extends AbstractDatabase
         return 'mysql';
     }
 
+    protected function installScript(): View
+    {
+        return view($this->getScriptView('install'), [
+            'version' => $this->service->version,
+        ]);
+    }
+
     public function version(): string
     {
         $version = $this->service->server->ssh()->exec(
-            'mysql -V | grep -oE \'[0-9]+\.[0-9]+\.[0-9]+\''
+            'mysql -V | grep -oE \'[0-9]+\.[0-9]+\.[0-9]+\' | head -n 1'
         );
 
         return trim($version);
+    }
+
+    public function logs(): array
+    {
+        return [
+            new ServiceLog(
+                key: 'mysql:journal',
+                serviceLabel: 'MySQL',
+                label: 'Service journal',
+                source: ServiceLog::SOURCE_JOURNAL,
+                target: 'mysql.service',
+            ),
+        ];
     }
 }

@@ -23,7 +23,7 @@ class SSHFake extends SSH
 
     protected string $uploadedRemotePath;
 
-    protected string $uploadedContent;
+    protected string $uploadedContent = '';
 
     public function __construct(protected ?string $output = null) {}
 
@@ -53,7 +53,7 @@ class SSHFake extends SSH
         }
     }
 
-    public function exec(string|View $command, string $log = '', ?int $siteId = null, ?bool $stream = false, ?callable $streamCallback = null): string
+    public function exec(string|View $command, string $log = '', ?int $siteId = null, ?bool $stream = false, ?callable $streamCallback = null, int $timeout = 0): string
     {
         if (! $this->log instanceof ServerLog && $log) {
             /** @var ServerLog $log */
@@ -69,7 +69,7 @@ class SSHFake extends SSH
         $this->commands[] = $command;
 
         $output = $this->output ?? 'fake output';
-        $this->log?->write($output);
+        $this->writeOutput($output);
 
         if ($stream === true) {
             echo $output;
@@ -121,25 +121,28 @@ class SSHFake extends SSH
         $executed = false;
         foreach ($this->commands as $executedCommand) {
             if (str($executedCommand)->contains($command)) {
-                return;
+                $executed = true;
+                break;
             }
         }
 
-        Assert::fail(
+        Assert::assertTrue(
+            $executed,
             'The expected command is not executed in the executed commands: '.implode(', ', $this->commands)
         );
     }
 
     public function assertNotExecutedContains(string $command, string $message = ''): void
     {
-        foreach ($this->commands as $executedCommand) {
-            $commandStr = (string) $executedCommand;
-            if (str($commandStr)->contains($command)) {
-                Assert::fail(
-                    $message ?: "The command '{$command}' should not be executed, but it was found in: {$commandStr}"
-                );
-            }
-        }
+        $matches = array_filter(
+            $this->commands,
+            fn (string|View $executedCommand): bool => str((string) $executedCommand)->contains($command)
+        );
+
+        Assert::assertEmpty(
+            $matches,
+            $message ?: "The command '{$command}' should not be executed, but it was found in: ".implode(', ', $matches)
+        );
     }
 
     public function assertFileUploaded(string $toPath, ?string $content = null): void
@@ -158,5 +161,10 @@ class SSHFake extends SSH
     public function getUploadedLocalPath(): string
     {
         return $this->uploadedLocalPath;
+    }
+
+    public function getUploadedContent(): string
+    {
+        return $this->uploadedContent;
     }
 }

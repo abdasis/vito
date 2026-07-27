@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Actions\GithubApp\EditGithubAppSourceControl;
 use App\Actions\SourceControl\ConnectSourceControl;
 use App\Actions\SourceControl\DeleteSourceControl;
 use App\Actions\SourceControl\EditSourceControl;
@@ -11,6 +12,7 @@ use App\Models\Project;
 use App\Models\SourceControl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\ResourceCollection;
+use Illuminate\Http\Response;
 use Spatie\RouteAttributes\Attributes\Delete;
 use Spatie\RouteAttributes\Attributes\Get;
 use Spatie\RouteAttributes\Attributes\Middleware;
@@ -74,7 +76,9 @@ class SourceControlController extends Controller
 
         $this->validateRoute($project, $sourceControl);
 
-        $sourceControl = app(EditSourceControl::class)->edit($sourceControl, $request->all());
+        $sourceControl = $sourceControl->isGithubApp()
+            ? app(EditGithubAppSourceControl::class)->edit($sourceControl, $request->all())
+            : app(EditSourceControl::class)->edit($sourceControl, $request->all());
 
         return new SourceControlResource($sourceControl);
     }
@@ -83,7 +87,7 @@ class SourceControlController extends Controller
      * @deprecated Use DELETE /api/source-controls/{sourceControl} instead
      */
     #[Delete('{sourceControl}', name: 'api.projects.source-controls.delete', middleware: 'ability:write')]
-    public function delete(Project $project, SourceControl $sourceControl): \Illuminate\Http\Response
+    public function delete(Project $project, SourceControl $sourceControl): Response
     {
         $this->authorize('delete', $sourceControl);
 

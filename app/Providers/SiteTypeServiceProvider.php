@@ -5,19 +5,25 @@ namespace App\Providers;
 use App\DTOs\DynamicField;
 use App\DTOs\DynamicForm;
 use App\Enums\LoadBalancerMethod;
-use App\Enums\NodePackageManager;
 use App\Plugins\RegisterSiteFeature;
 use App\Plugins\RegisterSiteFeatureAction;
 use App\Plugins\RegisterSiteType;
+use App\SiteFeatures\ModernDeployment\Configuration;
+use App\SiteFeatures\ModernDeployment\Disable;
+use App\SiteFeatures\ModernDeployment\Enable;
+use App\SiteTypes\Blank;
+use App\SiteTypes\BunSite;
 use App\SiteTypes\Laravel;
 use App\SiteTypes\LoadBalancer;
-use App\SiteTypes\MiseBun;
-use App\SiteTypes\MiseNodeJS;
 use App\SiteTypes\NodeJS;
+use App\SiteTypes\NodeSite;
 use App\SiteTypes\PHPBlank;
 use App\SiteTypes\PHPMyAdmin;
 use App\SiteTypes\PHPSite;
 use App\SiteTypes\Wordpress;
+use App\Tooling\NodeTooling;
+use App\Tooling\PnpmTooling;
+use App\Tooling\YarnTooling;
 use Illuminate\Support\ServiceProvider;
 
 class SiteTypeServiceProvider extends ServiceProvider
@@ -30,8 +36,9 @@ class SiteTypeServiceProvider extends ServiceProvider
         $this->phpBlank();
         $this->laravel();
         $this->nodeJS();
-        $this->miseNodeJS();
-        $this->miseBun();
+        $this->nodeSite();
+        $this->bunSite();
+        $this->blank();
         $this->loadBalancer();
         $this->phpMyAdmin();
         $this->wordpress();
@@ -65,6 +72,15 @@ class SiteTypeServiceProvider extends ServiceProvider
                     ->checkbox()
                     ->label('Run `composer install --no-dev`')
                     ->default(false),
+                DynamicField::make('package_manager')
+                    ->toolingSelector(
+                        [NodeTooling::class, PnpmTooling::class, YarnTooling::class],
+                        [NodeTooling::class => 'npm'],
+                        null,
+                        true,
+                    )
+                    ->label('Package Manager')
+                    ->description('JavaScript package manager used to build front-end assets during deployment.'),
             ]))
             ->register();
     }
@@ -83,6 +99,15 @@ class SiteTypeServiceProvider extends ServiceProvider
                     ->label('Web Directory')
                     ->placeholder('e.g., public, www, dist (leave empty for root)')
                     ->description('The relative path of your website from /home/vito/your-domain/'),
+                DynamicField::make('package_manager')
+                    ->toolingSelector(
+                        [NodeTooling::class, PnpmTooling::class, YarnTooling::class],
+                        [NodeTooling::class => 'npm'],
+                        null,
+                        true,
+                    )
+                    ->label('Package Manager')
+                    ->description('JavaScript package manager used to build front-end assets during deployment.'),
             ]))
             ->register();
     }
@@ -117,6 +142,14 @@ class SiteTypeServiceProvider extends ServiceProvider
                     ->checkbox()
                     ->label('Run `composer install --no-dev`')
                     ->default(false),
+                DynamicField::make('package_manager')
+                    ->toolingSelector(
+                        [NodeTooling::class, PnpmTooling::class, YarnTooling::class],
+                        [NodeTooling::class => 'npm'],
+                        NodeTooling::class,
+                    )
+                    ->label('Package Manager')
+                    ->description('JavaScript package manager used to build front-end assets during deployment.'),
             ]))
             ->register();
         RegisterSiteFeature::make(Laravel::id(), 'modern-deployment')
@@ -125,129 +158,51 @@ class SiteTypeServiceProvider extends ServiceProvider
             ->register();
         RegisterSiteFeatureAction::make(Laravel::id(), 'modern-deployment', 'enable')
             ->label('Enable')
-            ->handler(\App\SiteFeatures\ModernDeployment\Enable::class)
+            ->handler(Enable::class)
             ->register();
         RegisterSiteFeatureAction::make(Laravel::id(), 'modern-deployment', 'disable')
             ->label('Disable')
-            ->handler(\App\SiteFeatures\ModernDeployment\Disable::class)
+            ->handler(Disable::class)
             ->register();
         RegisterSiteFeatureAction::make(Laravel::id(), 'modern-deployment', 'configuration')
             ->label('Configure')
-            ->handler(\App\SiteFeatures\ModernDeployment\Configuration::class)
+            ->handler(Configuration::class)
             ->register();
     }
 
     private function nodeJS(): void
     {
         RegisterSiteType::make(NodeJS::id())
-            ->label('NodeJS with NPM (Deprecated)')
+            ->label('NodeJS (Deprecated - Do Not Use)')
             ->handler(NodeJS::class)
-            ->form(DynamicForm::make([
-                DynamicField::make('source_control')
-                    ->component()
-                    ->label('Source Control'),
-                DynamicField::make('port')
-                    ->text()
-                    ->label('Port')
-                    ->placeholder('3000')
-                    ->description('On which port your app will be running'),
-                DynamicField::make('repository')
-                    ->text()
-                    ->label('Repository')
-                    ->placeholder('organization/repository')
-                    ->description('Your package.json must have start and build scripts'),
-                DynamicField::make('branch')
-                    ->text()
-                    ->label('Branch')
-                    ->default('main'),
-            ]))
+            ->form(DynamicForm::make([]))
             ->register();
     }
 
-    private function miseNodeJS(): void
+    private function nodeSite(): void
     {
-        RegisterSiteType::make(MiseNodeJS::id())
+        RegisterSiteType::make(NodeSite::id())
             ->label('Node.js')
-            ->handler(MiseNodeJS::class)
-            ->form(DynamicForm::make([
-                DynamicField::make('node_version')
-                    ->select()
-                    ->label('Node.js Version')
-                    ->options(MiseNodeJS::NODE_VERSIONS)
-                    ->default('22'),
-                DynamicField::make('package_manager')
-                    ->select()
-                    ->label('Package Manager')
-                    ->options(array_column(NodePackageManager::cases(), 'value'))
-                    ->default(NodePackageManager::Npm->value),
-                DynamicField::make('source_control')
-                    ->component()
-                    ->label('Source Control'),
-                DynamicField::make('port')
-                    ->text()
-                    ->label('Port')
-                    ->placeholder('3000')
-                    ->description('On which port your app will be running'),
-                DynamicField::make('repository')
-                    ->text()
-                    ->label('Repository')
-                    ->placeholder('organization/repository'),
-                DynamicField::make('branch')
-                    ->text()
-                    ->label('Branch')
-                    ->default('main'),
-                DynamicField::make('build_command')
-                    ->text()
-                    ->label('Build Command')
-                    ->placeholder('e.g., npm run build')
-                    ->description('Command to build your application. Leave empty to use the build script of package.json'),
-                DynamicField::make('start_command')
-                    ->text()
-                    ->label('Start Command')
-                    ->placeholder('e.g., npm start')
-                    ->description('Command to start your application. Leave empty to use the start script of package.json'),
-            ]))
+            ->handler(NodeSite::class)
+            ->form(DynamicForm::make(NodeSite::formFields()))
             ->register();
     }
 
-    private function miseBun(): void
+    private function bunSite(): void
     {
-        RegisterSiteType::make(MiseBun::id())
+        RegisterSiteType::make(BunSite::id())
             ->label('Bun')
-            ->handler(MiseBun::class)
-            ->form(DynamicForm::make([
-                DynamicField::make('bun_version')
-                    ->select()
-                    ->label('Bun Version')
-                    ->options(MiseBun::BUN_VERSIONS)
-                    ->default('1.2'),
-                DynamicField::make('source_control')
-                    ->component()
-                    ->label('Source Control'),
-                DynamicField::make('port')
-                    ->text()
-                    ->label('Port')
-                    ->placeholder('3000')
-                    ->description('On which port your app will be running'),
-                DynamicField::make('repository')
-                    ->text()
-                    ->label('Repository')
-                    ->placeholder('organization/repository'),
-                DynamicField::make('branch')
-                    ->text()
-                    ->label('Branch')
-                    ->default('main'),
-                DynamicField::make('build_command')
-                    ->text()
-                    ->label('Build Command')
-                    ->placeholder('e.g., bun run build')
-                    ->description('Command to build your application. Leave empty to use the build script of package.json'),
-                DynamicField::make('start_command')
-                    ->text()
-                    ->label('Start Command')
-                    ->placeholder('e.g., bun run start')
-                    ->description('Command to start your application. Leave empty to use the start script of package.json'),
-            ]))
+            ->handler(BunSite::class)
+            ->form(DynamicForm::make(BunSite::formFields()))
+            ->register();
+    }
+
+    private function blank(): void
+    {
+        RegisterSiteType::make(Blank::id())
+            ->label('Blank (Reverse Proxy)')
+            ->handler(Blank::class)
+            ->form(DynamicForm::make(Blank::formFields()))
             ->register();
     }
 

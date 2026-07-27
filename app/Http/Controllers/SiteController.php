@@ -5,13 +5,16 @@ namespace App\Http\Controllers;
 use App\Actions\Site\CreateSite;
 use App\Actions\Site\DisableSsl;
 use App\Actions\Site\EnableSsl;
+use App\Actions\Site\GetIsolatedUsers;
 use App\Actions\Site\GetSites;
+use App\Actions\Site\RetrySite;
 use App\Helpers\QueryBuilder;
 use App\Http\Resources\ServerLogResource;
 use App\Http\Resources\SiteResource;
 use App\Models\Server;
 use App\Models\Site;
 use App\Tables\SiteTable;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\ResourceCollection;
@@ -56,6 +59,14 @@ class SiteController extends Controller
         return SiteResource::collection($sites);
     }
 
+    #[Get('/servers/{server}/isolated-users', name: 'sites.isolated-users')]
+    public function isolatedUsers(Server $server): JsonResponse
+    {
+        $this->authorize('viewAny', [Site::class, $server]);
+
+        return response()->json(app(GetIsolatedUsers::class)->get($server));
+    }
+
     /**
      * @throws Throwable
      */
@@ -88,6 +99,17 @@ class SiteController extends Controller
         }
 
         return redirect()->route('application', ['server' => $server->id, 'site' => $site->id]);
+    }
+
+    #[Post('/servers/{server}/sites/{site}/retry', name: 'sites.retry')]
+    public function retry(Server $server, Site $site): RedirectResponse
+    {
+        $this->authorize('update', [$site, $server]);
+
+        app(RetrySite::class)->retry($site);
+
+        return back()
+            ->with('info', 'Retrying site installation...');
     }
 
     #[Post('/servers/{server}/sites/{site}/enable-ssl', name: 'sites.enable-ssl')]

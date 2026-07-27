@@ -11,8 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardRow, CardTitle } fr
 import { Site, SiteFeature } from '@/types/site';
 import { Separator } from '@/components/ui/separator';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import FeatureAction from '@/pages/site-features/components/feature-action';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useDialog } from '@/hooks/use-dialog';
 
 export default function SiteFeatures() {
   const page = usePage<{
@@ -22,6 +22,7 @@ export default function SiteFeatures() {
       [key: string]: SiteFeature;
     };
   }>();
+  const dialog = useDialog();
 
   return (
     <ServerLayout>
@@ -45,14 +46,14 @@ export default function SiteFeatures() {
           </AlertDescription>
         </Alert>
 
-        <Card>
+        <Card className="overflow-hidden">
           <CardHeader className="flex-row items-center justify-between gap-2">
             <div className="space-y-2">
               <CardTitle>Site features</CardTitle>
               <CardDescription>Here you can see the list of features and their actions</CardDescription>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="bg-background">
             {Object.entries(page.props.features).length > 0 ? (
               Object.entries(page.props.features).map(([key, feature], index) => (
                 <div key={`feature-${key}`}>
@@ -70,11 +71,13 @@ export default function SiteFeatures() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         {Object.entries(feature.actions || {}).map(([actionKey, action]) => (
-                          <FeatureAction key={`action-${actionKey}`} site={page.props.site} featureId={key} actionId={actionKey} action={action}>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled={!action.active}>
-                              {action.label}
-                            </DropdownMenuItem>
-                          </FeatureAction>
+                          <DropdownMenuItem
+                            key={`action-${actionKey}`}
+                            disabled={!action.active}
+                            onSelect={() => dialog.siteFeatureAction.open({ site: page.props.site, featureId: key, actionId: actionKey, action })}
+                          >
+                            {action.label}
+                          </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
                     </DropdownMenu>

@@ -26,6 +26,7 @@ class ConsoleController extends Controller
 
         return Inertia::render('servers/console', [
             'server' => ServerResource::make($server),
+            'ssh_users' => $server->sshLoginUsers(),
         ]);
     }
 
@@ -37,7 +38,7 @@ class ConsoleController extends Controller
         $this->validate($request, [
             'user' => [
                 'required',
-                Rule::in($server->getSshUsers()),
+                Rule::in($server->sshLoginUsers()),
             ],
         ]);
 
@@ -47,13 +48,13 @@ class ConsoleController extends Controller
             'ssh_user' => $request->input('user'),
         ]);
 
-        $appUrl = parse_url(config('app.url'));
+        $appUrl = parse_url(config('app.ws_url') ?: config('app.url'));
         $isSecure = ($appUrl['scheme'] ?? 'http') === 'https';
         $wsProtocol = $isSecure ? 'wss' : 'ws';
         $host = $appUrl['host'] ?? 'localhost';
         $port = $appUrl['port'] ?? ($isSecure ? 443 : 80);
 
-        if (app()->environment('local')) {
+        if (app()->environment('local') && ! config('app.ws_url')) {
             $wsPort = config('core.ws_port', 8085);
             $result['url'] = "{$wsProtocol}://{$host}:{$wsPort}/ws/terminal";
         } else {
