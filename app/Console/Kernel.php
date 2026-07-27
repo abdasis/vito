@@ -12,14 +12,14 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        $schedule->command('backups:run')->everyMinute();
+        $schedule->command('backups:run')->everyMinute()->withoutOverlapping();
         $schedule->command('backups:reconcile')->everyThirtyMinutes();
         $schedule->command('metrics:delete-older-metrics')->daily();
         $schedule->command('db:vacuum')->daily();
-        $schedule->command('metrics:get')->everyMinute()->withoutOverlapping(5);
-        $schedule->command('servers:check')->everyFiveMinutes();
+        $schedule->command('metrics:get')->everyFiveMinutes()->withoutOverlapping(5);
+        $schedule->command('servers:check')->everyFiveMinutes()->withoutOverlapping();
         $schedule->command('servers:check-updates')->dailyAt('02:00');
-        $schedule->command('servers:auto-update')->everyMinute()->withoutOverlapping();
+        $schedule->command('servers:auto-update')->everyFiveMinutes()->withoutOverlapping();
         $schedule->command('domains:check-pending')->everyFiveMinutes();
         $schedule->command('ssl:renew-wildcards')->daily();
         $schedule->command('ssl:check-expiry')->daily();

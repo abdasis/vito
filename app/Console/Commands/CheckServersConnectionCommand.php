@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Enums\ServerStatus;
 use App\Models\Server;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Redis;
 
 class CheckServersConnectionCommand extends Command
 {
@@ -26,7 +27,14 @@ class CheckServersConnectionCommand extends Command
                     if ($dispatchTime->diffInMinutes(now()) > 5) {
                         return;
                     }
-                    $server->checkConnection();
+                    Redis::throttle('servers-check:'.$server->id)
+                        ->block(5, 60)
+                        ->allow(1)
+                        ->every(60)
+                        ->then(
+                            fn () => $server->checkConnection(),
+                            fn () => null,
+                        );
                 })->onQueue('ssh');
             }
         });

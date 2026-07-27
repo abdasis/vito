@@ -18,35 +18,35 @@ class GetMetricsCommand extends Command
 
     public function handle(): void
     {
-        $checkedMetrics = 0;
         Server::query()
             ->where('status', ServerStatus::READY)
             ->whereHas('services', function (Builder $query): void {
                 $query->where('type', 'monitoring')
                     ->where('name', 'remote-monitor');
-            })->chunk(10, function ($servers) use (&$checkedMetrics): void {
+            })->chunk(10, function ($servers): void {
                 /** @var Server $server */
                 foreach ($servers as $server) {
-                    try {
-                        $info = $server->os()->resourceInfo();
-                        $server->metrics()->create(array_merge($info, ['server_id' => $server->id]));
-                        $checkedMetrics++;
-                    } catch (Throwable $e) {
-                        Log::warning('Failed to collect metrics for server', [
-                            'server_id' => $server->id,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
-                    try {
-                        app(CheckServiceStatuses::class)->check($server);
-                    } catch (Throwable $e) {
-                        Log::warning('Failed to check service statuses for server', [
-                            'server_id' => $server->id,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
+                    dispatch(function () use ($server): void {
+                        try {
+                            $info = $server->os()->resourceInfo();
+                            $server->metrics()->create(array_merge($info, ['server_id' => $server->id]));
+                        } catch (Throwable $e) {
+                            Log::warning('Failed to collect metrics for server', [
+                                'server_id' => $server->id,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+
+                        try {
+                            app(CheckServiceStatuses::class)->check($server);
+                        } catch (Throwable $e) {
+                            Log::warning('Failed to check service statuses for server', [
+                                'server_id' => $server->id,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
+                    })->onQueue('ssh');
                 }
             });
-        $this->info("Checked $checkedMetrics metrics");
     }
 }
